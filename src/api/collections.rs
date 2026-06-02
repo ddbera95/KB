@@ -149,7 +149,7 @@ async fn get_collection(
     .ok_or_else(|| AppError::NotFound(format!("collection '{}' not found", id)))?;
 
     let root_docs = sqlx::query_as::<_, Document>(
-        "SELECT id, collection_id, parent_id, title, slug, brief, content,
+        "SELECT id, project_id, collection_id, parent_id, title, slug, brief, content,
                 depth, sort_order, created_at, updated_at
          FROM documents
          WHERE collection_id = ? AND parent_id IS NULL

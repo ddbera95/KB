@@ -573,7 +573,7 @@ async fn get_backlinks(
     }
 
     let backlinks = sqlx::query_as::<_, Document>(
-        "SELECT d.id, d.collection_id, d.parent_id, d.title, d.slug, d.brief, \
+        "SELECT d.id, d.project_id, d.collection_id, d.parent_id, d.title, d.slug, d.brief, \
                 d.content, d.depth, d.sort_order, d.created_at, d.updated_at \
          FROM documents d \
          JOIN relations r ON d.id = r.source_id \
