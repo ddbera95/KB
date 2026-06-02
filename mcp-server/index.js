@@ -87,10 +87,22 @@ const TOOLS = [
   },
   {
     name: "kb_list_collections",
-    description: "List all collections in the KB.",
+    description: "List all collections in the current project.",
     inputSchema: {
       type: "object",
       properties: {},
+    },
+  },
+  {
+    name: "kb_create_collection",
+    description: "Create a new collection in the current project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Collection name" },
+        description: { type: "string", description: "Optional description" },
+      },
+      required: ["name"],
     },
   },
   {
@@ -248,6 +260,14 @@ async function callTool(name, args) {
       return cols.map(c =>
         `- **${c.name}** (${c.id})${c.description ? ` — ${c.description}` : ""}`
       ).join("\n");
+    }
+
+    case "kb_create_collection": {
+      const col = await api(`/collections?project_id=${PROJECT_ID}`, {
+        method: "POST",
+        body: JSON.stringify({ name: args.name, description: args.description }),
+      });
+      return `Created collection **${col.name}** (ID: \`${col.id}\`) in project \`${PROJECT_ID}\`.`;
     }
 
     case "kb_get_children": {
