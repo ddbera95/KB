@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "kb": {
+      "command": "node",
+      "args": ["/home/dhaval/RustroverProjects/KB/mcp-server/index.js"],
+      "env": {
+        "KB_API_URL": "http://localhost:3000"
+      }
+    }
+  }
+}
