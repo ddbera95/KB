@@ -127,6 +127,22 @@ async fn search_handler(
     let mut items: Vec<SearchResultItem> = Vec::with_capacity(tantivy_results.len());
 
     for sr in tantivy_results {
+        // Skip stale index entries — document was deleted from SQLite but
+        // Tantivy still has the old entry.
+        let still_exists = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM documents WHERE id = ?",
+        )
+        .bind(&sr.id)
+        .fetch_one(&state.db)
+        .await
+        .unwrap_or(0);
+
+        if still_exists == 0 {
+            // Clean up the stale entry from the index while we're here
+            let _ = state.search.delete_document(&sr.id);
+            continue;
+        }
+
         // Apply descendant filter if requested.
         if let Some(ref allowed) = descendant_ids {
             if !allowed.contains(&sr.id) {

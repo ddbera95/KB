@@ -230,12 +230,10 @@ async fn delete_project(
         ));
     }
 
-    // 3. Collect all document IDs belonging to this project (via collections)
-    //    so we can clean the search index afterwards.
+    // 3. Collect ALL document IDs for this project (both collection docs
+    //    and standalone docs) so we can clean the search index afterwards.
     let doc_ids = sqlx::query_scalar::<_, String>(
-        "SELECT d.id FROM documents d \
-         JOIN collections c ON d.collection_id = c.id \
-         WHERE c.project_id = ?",
+        "SELECT id FROM documents WHERE project_id = ?",
     )
     .bind(&id)
     .fetch_all(&state.db)
