@@ -6,8 +6,10 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const API        = process.env.KB_API_URL    ?? "http://localhost:3000";
-const PROJECT_ID = process.env.KB_PROJECT_ID ?? "default";
+const API = process.env.KB_API_URL ?? "http://localhost:3000";
+
+// Mutable — can be changed at runtime via kb_switch_project
+let PROJECT_ID = process.env.KB_PROJECT_ID ?? "default";
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
@@ -27,13 +29,24 @@ async function api(path, opts = {}) {
 const TOOLS = [
   {
     name: "kb_current_project",
-    description: "Show which KB project is currently active (set via KB_PROJECT_ID env var).",
+    description: "Show which KB project is currently active.",
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "kb_list_projects",
-    description: "List all KB projects with their IDs. Use the ID with KB_PROJECT_ID to scope to a different project.",
+    description: "List all KB projects with their IDs and names.",
     inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "kb_switch_project",
+    description: "Switch the active project for this session. All subsequent tool calls will use the new project. Use kb_list_projects to see available project IDs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_id: { type: "string", description: "ID of the project to switch to" },
+      },
+      required: ["project_id"],
+    },
   },
   {
     name: "kb_search",
@@ -158,6 +171,12 @@ const TOOLS = [
 // ── Tool handlers ─────────────────────────────────────────────────────────────
 async function callTool(name, args) {
   switch (name) {
+    case "kb_switch_project": {
+      const proj = await api(`/projects/${args.project_id}`);
+      PROJECT_ID = args.project_id;
+      return `Switched to project **${proj.name}** (\`${proj.id}\`). All KB tools now use this project.`;
+    }
+
     case "kb_current_project": {
       const proj = await api(`/projects/${PROJECT_ID}`).catch(() => null);
       if (!proj) return `Active project ID: \`${PROJECT_ID}\` (could not fetch details — is the backend running?)`;
