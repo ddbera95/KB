@@ -14,12 +14,15 @@ let PROJECT_ID = process.env.KB_PROJECT_ID ?? "default";
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
   const res = await fetch(`${API}/api${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...opts.headers },
     ...opts,
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error ?? `HTTP ${res.status}`);
+    const body = await res.json().catch(() => null);
+    const msg = body?.error ?? res.statusText ?? `HTTP ${res.status}`;
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
   }
   if (res.status === 204) return null;
   return res.json();
@@ -95,7 +98,7 @@ const TOOLS = [
   },
   {
     name: "kb_create_collection",
-    description: "Create a new collection in the current project.",
+    description: "Create a new collection in the current project. Returns existing collection if name already exists.",
     inputSchema: {
       type: "object",
       properties: {
@@ -103,6 +106,17 @@ const TOOLS = [
         description: { type: "string", description: "Optional description" },
       },
       required: ["name"],
+    },
+  },
+  {
+    name: "kb_delete_collection",
+    description: "Delete a collection by ID. This does NOT delete its pages — they lose their collection but remain accessible.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Collection ID to delete" },
+      },
+      required: ["id"],
     },
   },
   {
@@ -263,11 +277,30 @@ async function callTool(name, args) {
     }
 
     case "kb_create_collection": {
-      const col = await api(`/collections?project_id=${PROJECT_ID}`, {
-        method: "POST",
-        body: JSON.stringify({ name: args.name, description: args.description }),
-      });
-      return `Created collection **${col.name}** (ID: \`${col.id}\`) in project \`${PROJECT_ID}\`.`;
+      try {
+        const col = await api(`/collections?project_id=${PROJECT_ID}`, {
+          method: "POST",
+          body: JSON.stringify({ name: args.name, description: args.description }),
+        });
+        return `Created collection **${col.name}** (ID: \`${col.id}\`) in project \`${PROJECT_ID}\`.`;
+      } catch (err) {
+        // Slug conflict (409) — collection already exists, return it instead of erroring
+        if (err.status === 409) {
+          const cols = await api(`/collections?project_id=${PROJECT_ID}`);
+          const existing = cols.find(c =>
+            c.name.toLowerCase() === args.name.toLowerCase()
+          );
+          if (existing) {
+            return `Collection **${existing.name}** already exists (ID: \`${existing.id}\`). Using existing collection.`;
+          }
+        }
+        throw err;
+      }
+    }
+
+    case "kb_delete_collection": {
+      await api(`/collections/${args.id}`, { method: "DELETE" });
+      return `Collection \`${args.id}\` deleted. Its pages are still accessible but no longer grouped in this collection.`;
     }
 
     case "kb_get_children": {
