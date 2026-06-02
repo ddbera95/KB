@@ -6,7 +6,8 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const API = process.env.KB_API_URL ?? "http://localhost:3000";
+const API        = process.env.KB_API_URL    ?? "http://localhost:3000";
+const PROJECT_ID = process.env.KB_PROJECT_ID ?? "default";
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
@@ -25,8 +26,18 @@ async function api(path, opts = {}) {
 // ── Tool definitions ──────────────────────────────────────────────────────────
 const TOOLS = [
   {
+    name: "kb_current_project",
+    description: "Show which KB project is currently active (set via KB_PROJECT_ID env var).",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "kb_list_projects",
+    description: "List all KB projects with their IDs. Use the ID with KB_PROJECT_ID to scope to a different project.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
     name: "kb_search",
-    description: "Full-text search across all KB pages. Returns matching pages with title, snippet, and breadcrumb.",
+    description: "Full-text search across pages in the current project. Returns matching pages with title, snippet, and breadcrumb.",
     inputSchema: {
       type: "object",
       properties: {
@@ -147,8 +158,22 @@ const TOOLS = [
 // ── Tool handlers ─────────────────────────────────────────────────────────────
 async function callTool(name, args) {
   switch (name) {
+    case "kb_current_project": {
+      const proj = await api(`/projects/${PROJECT_ID}`).catch(() => null);
+      if (!proj) return `Active project ID: \`${PROJECT_ID}\` (could not fetch details — is the backend running?)`;
+      return `Active project: **${proj.name}** (ID: \`${proj.id}\`)\n${proj.description ? `Description: ${proj.description}` : ""}\nCollections: ${proj.collections_count ?? "?"} · Pages: ${proj.documents_count ?? "?"}`;
+    }
+
+    case "kb_list_projects": {
+      const projects = await api("/projects");
+      if (!projects.length) return "No projects found.";
+      return projects.map(p =>
+        `- **${p.name}** (ID: \`${p.id}\`)${p.id === PROJECT_ID ? " ← active" : ""}${p.description ? `\n  ${p.description}` : ""}`
+      ).join("\n");
+    }
+
     case "kb_search": {
-      const params = new URLSearchParams({ q: args.query });
+      const params = new URLSearchParams({ q: args.query, project_id: PROJECT_ID });
       if (args.limit) params.set("limit", String(args.limit));
       if (args.collection_id) params.set("collection_id", args.collection_id);
       const res = await api(`/search?${params}`);
@@ -184,7 +209,7 @@ async function callTool(name, args) {
     }
 
     case "kb_list_pages": {
-      const params = {};
+      const params = { project_id: PROJECT_ID };
       if (args.collection_id) params.collection_id = args.collection_id;
       if (args.standalone) params.standalone = "true";
       if (args.page) params.page = String(args.page);
@@ -199,7 +224,7 @@ async function callTool(name, args) {
     }
 
     case "kb_list_collections": {
-      const cols = await api("/collections");
+      const cols = await api(`/collections?project_id=${PROJECT_ID}`);
       if (!cols.length) return "No collections found.";
       return cols.map(c =>
         `- **${c.name}** (${c.id})${c.description ? ` — ${c.description}` : ""}`
@@ -224,6 +249,7 @@ async function callTool(name, args) {
       const body = {
         title: args.title,
         content: args.content ?? "",
+        project_id: PROJECT_ID,
         ...(args.brief && { brief: args.brief }),
         ...(args.collection_id && { collection_id: args.collection_id }),
         ...(args.parent_id && { parent_id: args.parent_id }),
