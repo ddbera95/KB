@@ -52,6 +52,30 @@ const TOOLS = [
     },
   },
   {
+    name: "kb_create_project",
+    description: "Create a new KB project and immediately switch to it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name:        { type: "string", description: "Project name" },
+        description: { type: "string", description: "Optional description" },
+        color:       { type: "string", description: "Hex colour e.g. #6366f1 (optional)" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "kb_delete_project",
+    description: "Delete a project and ALL its data (collections, pages, attachments). Irreversible. Cannot delete the default project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_id: { type: "string", description: "ID of the project to delete" },
+      },
+      required: ["project_id"],
+    },
+  },
+  {
     name: "kb_search",
     description: "Full-text search across pages in the current project. Returns matching pages with title, snippet, and breadcrumb.",
     inputSchema: {
@@ -201,6 +225,32 @@ async function callTool(name, args) {
       const proj = await api(`/projects/${args.project_id}`);
       PROJECT_ID = args.project_id;
       return `Switched to project **${proj.name}** (\`${proj.id}\`). All KB tools now use this project.`;
+    }
+
+    case "kb_create_project": {
+      const proj = await api("/projects", {
+        method: "POST",
+        body: JSON.stringify({
+          name: args.name,
+          description: args.description,
+          color: args.color ?? "#6366f1",
+        }),
+      });
+      PROJECT_ID = proj.id;
+      return `Created and switched to project **${proj.name}** (ID: \`${proj.id}\`). All KB tools now use this project.`;
+    }
+
+    case "kb_delete_project": {
+      if (args.project_id === "default") {
+        return "Error: the default project cannot be deleted.";
+      }
+      await api(`/projects/${args.project_id}`, { method: "DELETE" });
+      // If we just deleted the active project, fall back to default
+      if (PROJECT_ID === args.project_id) {
+        PROJECT_ID = "default";
+        return `Project \`${args.project_id}\` deleted. Switched back to the default project.`;
+      }
+      return `Project \`${args.project_id}\` and all its data have been permanently deleted.`;
     }
 
     case "kb_current_project": {
