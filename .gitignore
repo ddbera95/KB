@@ -29,3 +29,4 @@ Thumbs.db
 # ── Graphify output ───────────────────────────────────────────────
 graphify-out/
 frontend-react/data/
+.claude/
