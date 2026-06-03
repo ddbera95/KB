@@ -9,10 +9,11 @@ import { BlockNoteView } from '@blocknote/mantine';
 import { filterSuggestionItems, BlockNoteSchema, defaultBlockSpecs, createCodeBlockSpec } from '@blocknote/core';
 import { codeBlockOptions } from '@blocknote/code-block';
 import '@blocknote/mantine/style.css';
+import { loadDictionary, checkText, getSuggestions, type SpellError } from '../components/editor/SpellCheck';
 import {
   ChevronRight, ChevronDown, MoreHorizontal, Trash2, Clock,
   Paperclip, Link2, FileText, Upload, Download,
-  Check, Loader2,
+  Check, Loader2, SpellCheck,
 } from 'lucide-react';
 import type { Document, DocumentDetail, DocumentVersion, Attachment } from '../types';
 import {
@@ -144,12 +145,35 @@ function DocEditor({
   initialContent,
   rawContent,
   onChange,
+  spellCheckOn,
 }: {
   initialContent: any[] | undefined;
   rawContent: string;
   onChange: (content: string) => void;
+  spellCheckOn: boolean;
 }) {
   const editor = useCreateBlockNote({ schema, initialContent });
+  const [errors, setErrors] = useState<SpellError[]>([]);
+  const [popup, setPopup] = useState<{ word: string; suggestions: string[]; x: number; y: number } | null>(null);
+
+  // Run spell check after content changes
+  const runCheck = useCallback(() => {
+    if (!spellCheckOn) { setErrors([]); return; }
+    // Extract plain text from all blocks
+    const text = editor.document
+      .map((b: any) => {
+        if (typeof b.content === 'string') return b.content;
+        if (Array.isArray(b.content)) return b.content.map((c: any) => c.text ?? '').join('');
+        return '';
+      })
+      .join('\n');
+    setErrors(checkText(text));
+  }, [spellCheckOn, editor]);
+
+  useEffect(() => {
+    if (!spellCheckOn) { setErrors([]); return; }
+    loadDictionary(runCheck);
+  }, [spellCheckOn, runCheck]);
 
   // If initialContent is undefined the raw string is Markdown (e.g. written
   // by the MCP server). Convert it to BlockNote blocks after mount.
@@ -171,13 +195,11 @@ function DocEditor({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    // spellCheck={false} cascades into all contenteditable children —
-    // disables the browser's red-underline spell checking in the editor
-    <div spellCheck={false}>
+    <div spellCheck={false} style={{ position: 'relative' }}>
     <BlockNoteView
       editor={editor}
       theme="dark"
-      onChange={() => onChange(JSON.stringify(editor.document))}
+      onChange={() => { onChange(JSON.stringify(editor.document)); if (spellCheckOn) setTimeout(runCheck, 600); }}
       slashMenu={false}
     >
       <SuggestionMenuController
@@ -193,6 +215,81 @@ function DocEditor({
         }
       />
     </BlockNoteView>
+
+    {/* ── Spell-check error panel ── */}
+    {spellCheckOn && errors.length > 0 && (
+      <div style={{
+        marginTop: 12, padding: '10px 14px',
+        background: 'var(--bg2)', border: '1px solid var(--border)',
+        borderRadius: 8, fontSize: 13,
+      }}>
+        <div style={{ fontWeight: 600, color: 'var(--text2)', marginBottom: 8, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Spell Check — {errors.length} issue{errors.length !== 1 ? 's' : ''}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {errors.slice(0, 30).map((e, i) => (
+            <div
+              key={i}
+              onClick={(ev) => {
+                const sugg = getSuggestions(e.word);
+                setPopup({ word: e.word, suggestions: sugg, x: ev.clientX, y: ev.clientY });
+              }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '3px 10px', borderRadius: 20, cursor: 'pointer',
+                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                color: '#f87171', fontSize: 12.5, fontFamily: 'inherit',
+              }}
+            >
+              {e.word}
+            </div>
+          ))}
+          {errors.length > 30 && (
+            <span style={{ color: 'var(--muted)', fontSize: 12, alignSelf: 'center' }}>
+              +{errors.length - 30} more
+            </span>
+          )}
+        </div>
+      </div>
+    )}
+
+    {spellCheckOn && errors.length === 0 && (
+      <div style={{ marginTop: 8, fontSize: 12, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <Check size={13} /> No spelling issues found
+      </div>
+    )}
+
+    {/* Suggestions popup */}
+    {popup && (
+      <>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setPopup(null)} />
+        <div style={{
+          position: 'fixed', left: popup.x, top: popup.y + 8, zIndex: 200,
+          background: 'var(--bg2)', border: '1px solid var(--border)',
+          borderRadius: 8, padding: 4, boxShadow: '0 8px 24px rgba(0,0,0,.5)',
+          minWidth: 140,
+        }}>
+          <div style={{ padding: '4px 10px', fontSize: 11, color: 'var(--muted)', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
+            Suggestions for <strong style={{ color: 'var(--text)' }}>{popup.word}</strong>
+          </div>
+          {popup.suggestions.length === 0 ? (
+            <div style={{ padding: '4px 10px', fontSize: 13, color: 'var(--muted)' }}>No suggestions</div>
+          ) : popup.suggestions.map((s, i) => (
+            <button key={i} onClick={() => setPopup(null)} style={{
+              display: 'block', width: '100%', padding: '5px 10px',
+              background: 'none', border: 'none', textAlign: 'left',
+              fontSize: 13, color: 'var(--text)', cursor: 'pointer',
+              borderRadius: 4, fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg3)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </>
+    )}
     </div>
   );
 }
@@ -225,6 +322,7 @@ export default function DocumentPage() {
 
   const [propsOpen, setPropsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [spellCheckOn, setSpellCheckOn] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [showDel, setShowDel] = useState(false);
   const [subPagesOpen, setSubPagesOpen] = useState(true);
@@ -408,6 +506,23 @@ export default function DocumentPage() {
             <span className="save-badge"><Check size={12} /> Saved</span>
           )}
 
+          {/* Spell-check toggle */}
+          <button
+            onClick={() => setSpellCheckOn(p => !p)}
+            title={spellCheckOn ? 'Disable spell check' : 'Enable spell check'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '4px 10px', border: `1px solid ${spellCheckOn ? '#4ade80' : 'var(--border)'}`,
+              borderRadius: 6, background: spellCheckOn ? 'rgba(74,222,128,0.1)' : 'var(--bg2)',
+              color: spellCheckOn ? '#4ade80' : 'var(--text2)',
+              fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            <SpellCheck size={13} />
+            {spellCheckOn ? 'Spell Check On' : 'Spell Check'}
+          </button>
+
           <div style={{ position: 'relative' }}>
             <button className="btn icon-btn" onClick={() => setMenuOpen(p => !p)}>
               <MoreHorizontal size={16} />
@@ -493,6 +608,7 @@ export default function DocumentPage() {
                 initialContent={initialBlocks}
                 rawContent={latestContent.current}
                 onChange={markDirty}
+                spellCheckOn={spellCheckOn}
               />
             </div>
           )}
