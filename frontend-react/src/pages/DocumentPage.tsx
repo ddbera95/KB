@@ -35,11 +35,7 @@ function fmtSize(b: number) {
   if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
   return `${(b / 1048576).toFixed(1)} MB`;
 }
-const KNOWN_BLOCK_TYPES = new Set([
-  'paragraph','heading','bulletListItem','numberedListItem','checkListItem',
-  'codeBlock','image','video','audio','file','table','quote',
-  'callout','toggleListItem',
-]);
+// Derived at runtime from the actual schema — always in sync, never stale
 
 // Convert [[Page Title]] wiki links to standard Markdown links so BlockNote
 // renders them as clickable links. Clicking navigates to /search?q=title
@@ -90,7 +86,16 @@ function parseBlocks(content: string) {
   try {
     const p = JSON.parse(content);
     if (!Array.isArray(p) || p.length === 0) return undefined;
-    const safe = p.filter((b: any) => b?.type && KNOWN_BLOCK_TYPES.has(b.type));
+    // Filter to only block types actually in the current schema
+    const safe = p
+      .filter((b: any) => b?.type && KNOWN_BLOCK_TYPES.has(b.type))
+      .map((b: any) => ({
+        // Only keep known props to avoid crashes from stale prop schemas
+        type: b.type,
+        props: b.props ?? {},
+        content: b.content ?? [],
+        children: (b.children ?? []).filter((c: any) => c?.type && KNOWN_BLOCK_TYPES.has(c.type)),
+      }));
     if (safe.length === 0) return undefined;
     // Expand [[wiki links]] in JSON blocks to proper link nodes
     return expandWikiLinksInBlocks(safe);
@@ -105,6 +110,9 @@ const schema = BlockNoteSchema.create({
     codeBlock: createCodeBlockSpec(codeBlockOptions),
   },
 });
+
+// Derive valid block types from the actual schema — never stale
+const KNOWN_BLOCK_TYPES = new Set(Object.keys(schema.blockSpecs));
 
 // ── Callout templates — inserted as styled paragraphs via the slash menu ───────
 const CALLOUT_ITEMS = [
