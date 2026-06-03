@@ -167,7 +167,7 @@ const TOOLS = [
   },
   {
     name: "kb_create_page",
-    description: "Create a new KB page.",
+    description: "Create a new KB page. Write content as Markdown — headings (# ## ###), code blocks (```lang), lists, bold/italic, blockquotes, tables, wiki-links ([[Page Title]]). For callout blocks prefix lines with emoji: ℹ️ info, ⚠️ warning, 💡 tip, 🚨 danger, 📝 note. Always add meaningful tags.",
     inputSchema: {
       type: "object",
       properties: {
@@ -187,7 +187,7 @@ const TOOLS = [
   },
   {
     name: "kb_update_page",
-    description: "Update an existing KB page. Only the fields you supply are changed.",
+    description: "Update an existing KB page. Content is Markdown — same format as kb_create_page. Only supplied fields are changed.",
     inputSchema: {
       type: "object",
       properties: {
@@ -206,7 +206,7 @@ const TOOLS = [
   },
   {
     name: "kb_append_to_page",
-    description: "Append text to an existing KB page without overwriting existing content.",
+    description: "Append Markdown text to an existing KB page without overwriting existing content. Use for adding new sections, updates, or notes.",
     inputSchema: {
       type: "object",
       properties: {
@@ -402,7 +402,34 @@ async function callTool(name, args) {
 
 // ── MCP Server ────────────────────────────────────────────────────────────────
 const server = new Server(
-  { name: "kb", version: "1.0.0" },
+  {
+    name: "kb",
+    version: "1.0.0",
+    description: `Personal Knowledge Base — self-hosted, local-first wiki.
+
+CONTENT FORMAT:
+Pages store content as plain Markdown. The UI renders it via BlockNote editor
+which converts Markdown to rich blocks. Write content in standard Markdown:
+  - Headings: # H1  ## H2  ### H3
+  - Code blocks: \`\`\`language ... \`\`\`  (rust, python, js, ts, sql, bash, etc.)
+  - Lists: - bullet  1. numbered  - [ ] task
+  - Bold/italic: **bold**  *italic*  \`inline code\`
+  - Blockquotes: > text
+  - Tables: | col | col |
+
+CALLOUT BLOCKS (use emoji prefix in Markdown):
+  ℹ️  Info note    ⚠️  Warning    💡 Tip/hint    🚨 Danger    📝 Note/comment
+
+WIKI LINKS: Use [[Page Title]] to cross-link pages. Backlinks are tracked automatically.
+
+TAGGING RULES:
+  - Always add tags — be specific: domain, type, key concepts
+  - Include: language (rust, python), topic (ownership, async), type (tutorial, reference)
+
+STRUCTURE:
+  Projects > Collections > Pages (nested pages supported)
+  Active project: ${PROJECT_ID}`,
+  },
   { capabilities: { tools: {} } }
 );
 
