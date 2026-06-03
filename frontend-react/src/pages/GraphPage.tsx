@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import cytoscape from 'cytoscape';
+// @ts-ignore
+import coseBilkent from 'cytoscape-cose-bilkent';
+cytoscape.use(coseBilkent);
 import {
   Loader2, ZoomIn, ZoomOut, Maximize2,
   RefreshCw, ExternalLink, X, Search,
@@ -8,6 +11,54 @@ import {
 } from 'lucide-react';
 import { getGraph } from '../api';
 import { useProject } from '../context';
+
+// ── Layout configurations ─────────────────────────────────────────────────────
+function getLayoutConfig(name: 'cose-bilkent' | 'circle' | 'breadthfirst') {
+  const base = { animate: true, animationDuration: 700, fit: true, padding: 80 };
+
+  if (name === 'cose-bilkent') {
+    return {
+      ...base,
+      name: 'cose-bilkent',
+      // Node repulsion — push nodes apart strongly
+      nodeRepulsion: 8500,
+      // Ideal edge length — longer = more spread out
+      idealEdgeLength: 120,
+      // Edge elasticity — how springy edges are
+      edgeElasticity: 0.1,
+      // Nesting factor for compound graphs
+      nestingFactor: 0.1,
+      // Pull towards centre
+      gravity: 0.15,
+      gravityRange: 3.8,
+      gravityCompound: 1,
+      gravityRangeCompound: 1.5,
+      // Prevent overlaps — the key setting
+      numIter: 2500,
+      tile: true,
+      tilingPaddingVertical: 12,
+      tilingPaddingHorizontal: 12,
+      // Randomise start positions
+      randomize: true,
+      // Include node labels in collision detection
+      nodeDimensionsIncludeLabels: true,
+    };
+  }
+
+  if (name === 'circle') {
+    return { ...base, name: 'circle', spacingFactor: 1.6 };
+  }
+
+  // breadthfirst (tree)
+  return {
+    ...base,
+    name: 'breadthfirst',
+    directed: false,
+    spacingFactor: 1.8,
+    maximal: true,
+    avoidOverlap: true,
+  };
+}
 
 // ── colour per collection ─────────────────────────────────────────────────────
 const PALETTE = [
@@ -60,7 +111,7 @@ export default function GraphPage() {
   const [stats, setStats] = useState({ nodes: 0, edges: 0 });
   const [selected, setSelected] = useState<Selected | null>(null);
   const [query, setQuery] = useState('');
-  const [layout, setLayout] = useState<'cose' | 'circle' | 'breadthfirst'>('cose');
+  const [layout, setLayout] = useState<'cose-bilkent' | 'circle' | 'breadthfirst'>('cose-bilkent');
 
   // ── build / rebuild ─────────────────────────────────────────────────────────
   const build = useCallback(async (nodes?: NodeData[], edges?: EdgeData[]) => {
@@ -278,23 +329,7 @@ export default function GraphPage() {
           style: { 'opacity': 0.05, 'z-index': 1 } as any,
         },
       ],
-      layout: {
-        name: layout,
-        animate: true,
-        animationDuration: 700,
-        animationEasing: 'ease-out-cubic',
-        ...(layout === 'cose' ? {
-          randomize: true,
-          nodeRepulsion: () => 12000,
-          idealEdgeLength: () => 100,
-          gravity: 1,
-          numIter: 1200,
-          fit: true,
-          padding: 60,
-        } : {}),
-        ...(layout === 'circle' ? { fit: true, padding: 60 } : {}),
-        ...(layout === 'breadthfirst' ? { fit: true, padding: 60, directed: false, spacingFactor: 1.4 } : {}),
-      } as any,
+      layout: getLayoutConfig(layout),
       wheelSensitivity: 0.25,
       minZoom: 0.05,
       maxZoom: 5,
@@ -361,17 +396,9 @@ export default function GraphPage() {
     cy.edges().addClass('faded');
   }, [query]);
 
-  const reLayout = (name: 'cose' | 'circle' | 'breadthfirst') => {
+  const reLayout = (name: 'cose-bilkent' | 'circle' | 'breadthfirst') => {
     setLayout(name);
-    cyRef.current?.layout({
-      name,
-      animate: true,
-      animationDuration: 600,
-      fit: true,
-      padding: 60,
-      ...(name === 'cose' ? { nodeRepulsion: () => 12000, idealEdgeLength: () => 100, numIter: 800 } : {}),
-      ...(name === 'breadthfirst' ? { directed: false, spacingFactor: 1.4 } : {}),
-    } as any).run();
+    cyRef.current?.layout(getLayoutConfig(name) as any).run();
   };
 
   const zoom = (dir: 1 | -1) => {
@@ -429,7 +456,7 @@ export default function GraphPage() {
 
         {/* layout */}
         <div style={{ display: 'flex', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-          {(['cose', 'circle', 'breadthfirst'] as const).map(l => (
+          {(['cose-bilkent', 'circle', 'breadthfirst'] as const).map(l => (
             <button
               key={l}
               onClick={() => reLayout(l)}
@@ -442,7 +469,7 @@ export default function GraphPage() {
                 transition: 'background 0.15s, color 0.15s',
               }}
             >
-              {l === 'cose' ? 'Force' : l === 'circle' ? 'Circle' : 'Tree'}
+              {l === 'cose-bilkent' ? 'Force' : l === 'circle' ? 'Circle' : 'Tree'}
             </button>
           ))}
         </div>
