@@ -1,8 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useCreateBlockNote } from '@blocknote/react';
+import {
+  useCreateBlockNote,
+  getDefaultReactSlashMenuItems,
+  SuggestionMenuController,
+} from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
+import { BlockNoteSchema, defaultBlockSpecs, filterSuggestionItems } from '@blocknote/core';
 import { codeBlockOptions } from '@blocknote/code-block';
+import { CalloutBlock, CALLOUT_STYLES, type CalloutType } from '../components/editor/CalloutBlock';
 import '@blocknote/mantine/style.css';
 import {
   ChevronRight, ChevronDown, MoreHorizontal, Trash2, Clock,
@@ -37,6 +43,36 @@ function parseBlocks(content: string) {
   return undefined;
 }
 
+// ── Schema with callout + syntax-highlighted code blocks ─────────────────────
+const schema = BlockNoteSchema.create({
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    callout: CalloutBlock,
+  },
+});
+
+// ── Slash menu callout items ──────────────────────────────────────────────────
+function getCalloutMenuItems(editor: typeof schema.BlockNoteEditor) {
+  return (Object.keys(CALLOUT_STYLES) as CalloutType[]).map(type => {
+    const s = CALLOUT_STYLES[type];
+    return {
+      title: s.label,
+      subtext: `${s.icon} ${s.label} callout`,
+      onItemClick: () => {
+        const pos = editor.getTextCursorPosition();
+        editor.insertBlocks(
+          [{ type: 'callout', props: { calloutType: type } }],
+          pos.block,
+          'after',
+        );
+      },
+      aliases: ['callout', 'note', type],
+      group: 'Callouts',
+      icon: <span style={{ fontSize: 16 }}>{s.icon}</span>,
+    };
+  });
+}
+
 // ── Keyed editor — remounts on every new doc ──────────────────────────────────
 function DocEditor({
   initialContent,
@@ -48,6 +84,7 @@ function DocEditor({
   onChange: (content: string) => void;
 }) {
   const editor = useCreateBlockNote({
+    schema,
     initialContent,
     codeBlock: codeBlockOptions,
   });
@@ -58,8 +95,6 @@ function DocEditor({
     if (initialContent !== undefined) return;
     if (!rawContent || rawContent.trim() === '') return;
 
-    // tryParseMarkdownToBlocks returns a Promise in newer BlockNote versions
-    // and Block[] synchronously in older ones — handle both.
     const result = editor.tryParseMarkdownToBlocks(rawContent);
     const apply = (blocks: any[]) => {
       if (blocks.length > 0) editor.replaceBlocks(editor.document, blocks);
@@ -76,7 +111,21 @@ function DocEditor({
       editor={editor}
       theme="dark"
       onChange={() => onChange(JSON.stringify(editor.document))}
-    />
+      slashMenu={false}
+    >
+      <SuggestionMenuController
+        triggerCharacter="/"
+        getItems={async (query) =>
+          filterSuggestionItems(
+            [
+              ...getDefaultReactSlashMenuItems(editor),
+              ...getCalloutMenuItems(editor),
+            ],
+            query,
+          )
+        }
+      />
+    </BlockNoteView>
   );
 }
 
