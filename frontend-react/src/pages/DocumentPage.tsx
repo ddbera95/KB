@@ -171,6 +171,9 @@ function DocEditor({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
+    // spellCheck={false} cascades into all contenteditable children —
+    // disables the browser's red-underline spell checking in the editor
+    <div spellCheck={false}>
     <BlockNoteView
       editor={editor}
       theme="dark"
@@ -190,6 +193,7 @@ function DocEditor({
         }
       />
     </BlockNoteView>
+    </div>
   );
 }
 
@@ -425,7 +429,7 @@ export default function DocumentPage() {
 
       {/* ── body ── */}
       <div className="page-scroll" onClick={() => menuOpen && setMenuOpen(false)}>
-        <div className="page-inner">
+        <div className="page-inner" spellCheck={false}>
 
           {/* title */}
           <input

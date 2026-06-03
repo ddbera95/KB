@@ -264,6 +264,17 @@ input, textarea { font-family: inherit; }
 .spin { animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Disable browser spell check globally ───────────────────────────────── */
+/* spellcheck=false must be set as an HTML attribute (done in JSX),
+   but we also disable autocorrect/autocapitalize via CSS-adjacent attrs */
+.bn-editor,
+.bn-editor *,
+.page-inner,
+.page-inner * {
+  -webkit-spell-check: false;
+  /* autocorrect handled in JSX via spellCheck={false} */
+}
+
 /* ── blocknote overrides ── */
 .bn-container { --bn-colors-editor-background: transparent !important; }
 .bn-editor { padding: 0 !important; }
