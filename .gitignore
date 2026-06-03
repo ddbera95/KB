@@ -34,3 +34,4 @@ frontend/build/
 *.jpg
 *.jpeg
 .claude/
+mimix/
