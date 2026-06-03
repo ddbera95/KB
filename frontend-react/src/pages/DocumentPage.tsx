@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCreateBlockNote } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
+import { codeBlockOptions } from '@blocknote/code-block';
 import '@blocknote/mantine/style.css';
 import {
   ChevronRight, ChevronDown, MoreHorizontal, Trash2, Clock,
@@ -46,7 +47,10 @@ function DocEditor({
   rawContent: string;
   onChange: (content: string) => void;
 }) {
-  const editor = useCreateBlockNote({ initialContent });
+  const editor = useCreateBlockNote({
+    initialContent,
+    codeBlock: codeBlockOptions,
+  });
 
   // If initialContent is undefined the raw string is Markdown (e.g. written
   // by the MCP server). Convert it to BlockNote blocks after mount.
