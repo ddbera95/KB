@@ -6,38 +6,9 @@ import {
   SuggestionMenuController,
 } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
-import { filterSuggestionItems } from '@blocknote/core';
+import { filterSuggestionItems, BlockNoteSchema, defaultBlockSpecs, createCodeBlockSpec } from '@blocknote/core';
+import { codeBlockOptions } from '@blocknote/code-block';
 import '@blocknote/mantine/style.css';
-import hljs from 'highlight.js/lib/core';
-import rust     from 'highlight.js/lib/languages/rust';
-import python   from 'highlight.js/lib/languages/python';
-import typescript from 'highlight.js/lib/languages/typescript';
-import javascript from 'highlight.js/lib/languages/javascript';
-import sql       from 'highlight.js/lib/languages/sql';
-import bash      from 'highlight.js/lib/languages/bash';
-import json      from 'highlight.js/lib/languages/json';
-import yaml      from 'highlight.js/lib/languages/yaml';
-import xml       from 'highlight.js/lib/languages/xml';
-import css       from 'highlight.js/lib/languages/css';
-import cpp       from 'highlight.js/lib/languages/cpp';
-import go        from 'highlight.js/lib/languages/go';
-import 'highlight.js/styles/atom-one-dark.css';
-
-hljs.registerLanguage('rust', rust);
-hljs.registerLanguage('python', python);
-hljs.registerLanguage('typescript', typescript);
-hljs.registerLanguage('javascript', javascript);
-hljs.registerLanguage('sql', sql);
-hljs.registerLanguage('bash', bash);
-hljs.registerLanguage('shell', bash);
-hljs.registerLanguage('sh', bash);
-hljs.registerLanguage('json', json);
-hljs.registerLanguage('yaml', yaml);
-hljs.registerLanguage('xml', xml);
-hljs.registerLanguage('html', xml);
-hljs.registerLanguage('css', css);
-hljs.registerLanguage('cpp', cpp);
-hljs.registerLanguage('go', go);
 import {
   ChevronRight, ChevronDown, MoreHorizontal, Trash2, Clock,
   Paperclip, Link2, FileText, Upload, Download,
@@ -126,7 +97,14 @@ function parseBlocks(content: string) {
   return undefined;
 }
 
-// ── Schema with callout + syntax-highlighted code blocks ─────────────────────
+// ── Schema: replace plain codeBlock with Shiki-powered one ──────────────────
+const schema = BlockNoteSchema.create({
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    codeBlock: createCodeBlockSpec(codeBlockOptions),
+  },
+});
+
 // ── Callout templates — inserted as styled paragraphs via the slash menu ───────
 const CALLOUT_ITEMS = [
   { title: 'Info Note',  emoji: 'ℹ️',  color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  aliases: ['info','note','callout'] },
@@ -171,7 +149,7 @@ function DocEditor({
   rawContent: string;
   onChange: (content: string) => void;
 }) {
-  const editor = useCreateBlockNote({ initialContent });
+  const editor = useCreateBlockNote({ schema, initialContent });
 
   // If initialContent is undefined the raw string is Markdown (e.g. written
   // by the MCP server). Convert it to BlockNote blocks after mount.
@@ -183,8 +161,6 @@ function DocEditor({
     const apply = (blocks: any[]) => {
       if (blocks.length > 0) {
         editor.replaceBlocks(editor.document, blocks);
-        // Highlight after DOM updates
-        setTimeout(applyHighlighting, 150);
       }
     };
     if (result && typeof (result as any).then === 'function') {
@@ -194,28 +170,11 @@ function DocEditor({
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Apply highlight.js to all code blocks whenever editor content changes
-  const applyHighlighting = useCallback(() => {
-    requestAnimationFrame(() => {
-      document.querySelectorAll('.bn-block-content pre code, .bn-editor pre code').forEach(block => {
-        if (!(block as HTMLElement).dataset.highlighted) {
-          hljs.highlightElement(block as HTMLElement);
-        }
-      });
-    });
-  }, []);
-
-  useEffect(() => {
-    // Initial highlight after markdown conversion
-    const timer = setTimeout(applyHighlighting, 100);
-    return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   return (
     <BlockNoteView
       editor={editor}
       theme="dark"
-      onChange={() => { onChange(JSON.stringify(editor.document)); applyHighlighting(); }}
+      onChange={() => onChange(JSON.stringify(editor.document))}
       slashMenu={false}
     >
       <SuggestionMenuController
