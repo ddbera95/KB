@@ -279,6 +279,43 @@ input, textarea { font-family: inherit; }
 .bn-container { --bn-colors-editor-background: transparent !important; }
 .bn-editor { padding: 0 !important; }
 
+/* ── Block background colours — dim for dark theme ──────────────────────── */
+/* Add padding + rounded corners to all coloured blocks */
+.bn-block:has(> .bn-block-content[data-background-color]) {
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  margin: 2px 0 !important;
+}
+
+/* Override each colour with a muted dark-theme tint */
+.bn-block:has(> .bn-block-content[data-background-color=gray]) {
+  background-color: rgba(148, 148, 148, 0.12) !important;
+}
+.bn-block:has(> .bn-block-content[data-background-color=brown]) {
+  background-color: rgba(160, 100, 60, 0.14) !important;
+}
+.bn-block:has(> .bn-block-content[data-background-color=red]) {
+  background-color: rgba(220, 55, 55, 0.12) !important;
+}
+.bn-block:has(> .bn-block-content[data-background-color=orange]) {
+  background-color: rgba(220, 110, 20, 0.13) !important;
+}
+.bn-block:has(> .bn-block-content[data-background-color=yellow]) {
+  background-color: rgba(210, 175, 15, 0.13) !important;
+}
+.bn-block:has(> .bn-block-content[data-background-color=green]) {
+  background-color: rgba(50, 180, 100, 0.12) !important;
+}
+.bn-block:has(> .bn-block-content[data-background-color=blue]) {
+  background-color: rgba(30, 140, 210, 0.13) !important;
+}
+.bn-block:has(> .bn-block-content[data-background-color=purple]) {
+  background-color: rgba(140, 80, 210, 0.13) !important;
+}
+.bn-block:has(> .bn-block-content[data-background-color=pink]) {
+  background-color: rgba(210, 50, 150, 0.12) !important;
+}
+
 /* ── Code block box ─────────────────────────────────────────────────────── */
 
 /* Outer wrapper created by createCodeBlockSpec */
