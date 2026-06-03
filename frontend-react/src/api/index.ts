@@ -89,6 +89,11 @@ export const createBackup = (destination: string) =>
     method: 'POST',
     body: JSON.stringify({ destination }),
   });
+export const mkdirBackup = (parent: string, name: string) =>
+  req<{ path: string }>('/backup/mkdir', {
+    method: 'POST',
+    body: JSON.stringify({ parent, name }),
+  });
 
 // ── Graph ────────────────────────────────────────────────────────────────────
 export const getGraph = (projectId = 'default') =>

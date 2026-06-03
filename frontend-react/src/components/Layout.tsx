@@ -4,13 +4,13 @@ import {
   Search, Plus, ChevronRight, ChevronDown,
   FileText, Network, Layers, BookOpen,
   MoreHorizontal, Trash2, Edit2, FolderOpen,
-  HardDrive, Loader2,
+  HardDrive, Loader2, FolderPlus,
 } from 'lucide-react';
 import type { Collection, Document, Project } from '../types';
 import {
   getCollections, getCollection, getDocumentChildren,
   createDocument, createCollection,
-  deleteProject, updateProject, createBackup, browseDir,
+  deleteProject, updateProject, createBackup, browseDir, mkdirBackup,
 } from '../api';
 import { useProject } from '../context';
 
@@ -271,9 +271,13 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
   const [entries, setEntries] = useState<{ name: string; path: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [newFolderMode, setNewFolderMode] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createErr, setCreateErr] = useState('');
 
   const navigate = async (path?: string) => {
-    setLoading(true); setErr('');
+    setLoading(true); setErr(''); setNewFolderMode(false);
     try {
       const r = await browseDir(path);
       setCurrent(r.current);
@@ -283,6 +287,20 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
       setErr(e.message ?? 'Cannot open directory');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createFolder = async () => {
+    if (!newFolderName.trim()) return;
+    setCreating(true); setCreateErr('');
+    try {
+      const r = await mkdirBackup(current, newFolderName.trim());
+      await navigate(r.path); // navigate into the new folder
+      setNewFolderName('');
+    } catch (e: any) {
+      setCreateErr(e.message ?? 'Failed to create folder');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -302,13 +320,12 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
         </div>
 
         {/* Directory list */}
-        <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
           {loading && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--muted)' }}><Loader2 size={18} className="spin" /></div>}
           {err && <div style={{ padding: '12px 20px', color: 'var(--danger)', fontSize: 13 }}>{err}</div>}
 
           {!loading && !err && (
             <>
-              {/* Up one level */}
               {parent !== null && (
                 <button
                   onClick={() => navigate(parent)}
@@ -340,15 +357,50 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
           )}
         </div>
 
-        <div className="modal-foot">
-          <button className="btn" onClick={onClose}>Cancel</button>
+        {/* New folder input */}
+        {newFolderMode && (
+          <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg2)' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 16 }}>📁</span>
+              <input
+                autoFocus
+                className="modal-input"
+                style={{ flex: 1, marginTop: 0, fontSize: 13 }}
+                placeholder="New folder name…"
+                value={newFolderName}
+                onChange={e => { setNewFolderName(e.target.value); setCreateErr(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') createFolder(); if (e.key === 'Escape') { setNewFolderMode(false); setNewFolderName(''); } }}
+              />
+              <button className="btn primary" style={{ fontSize: 12, padding: '4px 10px', flexShrink: 0 }} onClick={createFolder} disabled={creating || !newFolderName.trim()}>
+                {creating ? <Loader2 size={12} className="spin" /> : 'Create'}
+              </button>
+              <button className="btn" style={{ fontSize: 12, padding: '4px 8px', flexShrink: 0 }} onClick={() => { setNewFolderMode(false); setNewFolderName(''); }}>✕</button>
+            </div>
+            {createErr && <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6 }}>{createErr}</div>}
+          </div>
+        )}
+
+        <div className="modal-foot" style={{ justifyContent: 'space-between' }}>
+          {/* New folder button on the left */}
           <button
-            className="btn primary"
+            className="btn"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+            onClick={() => { setNewFolderMode(p => !p); setNewFolderName(''); setCreateErr(''); }}
             disabled={!current}
-            onClick={() => { onSelect(current); onClose(); }}
           >
-            Select "{current.split('/').pop() || current}"
+            <FolderPlus size={13} /> New Folder
           </button>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" onClick={onClose}>Cancel</button>
+            <button
+              className="btn primary"
+              disabled={!current}
+              onClick={() => { onSelect(current); onClose(); }}
+            >
+              Select "{current.split('/').pop() || current}"
+            </button>
+          </div>
         </div>
       </div>
     </div>

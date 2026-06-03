@@ -111,10 +111,41 @@ async fn create_backup(
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
+// ── Create directory ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct MkdirRequest {
+    pub parent: String,
+    pub name: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MkdirResponse {
+    pub path: String,
+}
+
+async fn mkdir(Json(payload): Json<MkdirRequest>) -> Result<Json<MkdirResponse>> {
+    let name = payload.name.trim();
+    if name.is_empty() || name.contains('/') || name.contains('\0') {
+        return Err(AppError::BadRequest("Invalid folder name".into()));
+    }
+    let new_dir = PathBuf::from(&payload.parent).join(name);
+    if new_dir.exists() {
+        return Err(AppError::Conflict(format!("Folder '{}' already exists", name)));
+    }
+    std::fs::create_dir_all(&new_dir)?;
+    Ok(Json(MkdirResponse {
+        path: new_dir.to_string_lossy().to_string(),
+    }))
+}
+
+// ── Router ────────────────────────────────────────────────────────────────────
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", post(create_backup))
         .route("/browse", get(browse))
+        .route("/mkdir", post(mkdir))
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
