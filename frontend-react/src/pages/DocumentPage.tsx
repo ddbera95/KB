@@ -7,7 +7,6 @@ import {
 } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
 import { BlockNoteSchema, defaultBlockSpecs, filterSuggestionItems } from '@blocknote/core';
-import { codeBlockOptions } from '@blocknote/code-block';
 import { CalloutBlock, CALLOUT_STYLES, type CalloutType } from '../components/editor/CalloutBlock';
 import '@blocknote/mantine/style.css';
 import {
@@ -35,10 +34,20 @@ function fmtSize(b: number) {
   if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
   return `${(b / 1048576).toFixed(1)} MB`;
 }
+const KNOWN_BLOCK_TYPES = new Set([
+  'paragraph','heading','bulletListItem','numberedListItem','checkListItem',
+  'codeBlock','image','video','audio','file','table','quote',
+  'callout','toggleListItem',
+]);
+
 function parseBlocks(content: string) {
   try {
     const p = JSON.parse(content);
-    if (Array.isArray(p) && p.length > 0) return p;
+    if (!Array.isArray(p) || p.length === 0) return undefined;
+    // Filter out any block types not in the current schema to prevent
+    // ProseMirror "node type undefined" crashes on initialContent load.
+    const safe = p.filter((b: any) => b?.type && KNOWN_BLOCK_TYPES.has(b.type));
+    return safe.length > 0 ? safe : undefined;
   } catch {}
   return undefined;
 }
@@ -90,7 +99,6 @@ function DocEditor({
   const editor = useCreateBlockNote({
     schema,
     initialContent,
-    codeBlock: codeBlockOptions,
   });
 
   // If initialContent is undefined the raw string is Markdown (e.g. written
