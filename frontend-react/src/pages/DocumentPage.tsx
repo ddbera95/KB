@@ -47,7 +47,8 @@ function parseBlocks(content: string) {
 const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
-    callout: CalloutBlock,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    callout: CalloutBlock as any,
   },
 });
 
@@ -59,12 +60,15 @@ function getCalloutMenuItems(editor: typeof schema.BlockNoteEditor) {
       title: s.label,
       subtext: `${s.icon} ${s.label} callout`,
       onItemClick: () => {
-        const pos = editor.getTextCursorPosition();
-        editor.insertBlocks(
-          [{ type: 'callout', props: { calloutType: type } }],
-          pos.block,
-          'after',
-        );
+        const block = editor.getTextCursorPosition()?.block ?? editor.document[0];
+        if (block) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          editor.insertBlocks(
+            [{ type: 'callout', props: { calloutType: type } } as any],
+            block,
+            'after',
+          );
+        }
       },
       aliases: ['callout', 'note', type],
       group: 'Callouts',

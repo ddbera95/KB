@@ -1,4 +1,3 @@
-import React from 'react';
 import { createReactBlockSpec } from '@blocknote/react';
 import { defaultProps } from '@blocknote/core';
 
