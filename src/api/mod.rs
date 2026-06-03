@@ -2,6 +2,7 @@ use axum::Router;
 use crate::state::AppState;
 
 pub mod attachments;
+pub mod backup;
 pub mod collections;
 pub mod documents;
 pub mod graph;
@@ -16,4 +17,5 @@ pub fn router() -> Router<AppState> {
         .nest("/api/graph", graph::router())
         .nest("/api/attachments", attachments::router())
         .nest("/api/projects", projects::router())
+        .nest("/api/backup", backup::router())
 }

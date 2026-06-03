@@ -79,6 +79,13 @@ export const uploadAttachment = async (docId: string, file: File): Promise<Attac
 };
 export const getAttachmentUrl = (id: string) => `${BASE}/attachments/${id}`;
 
+// ── Backup ───────────────────────────────────────────────────────────────────
+export const createBackup = (destination: string) =>
+  req<{ backup_path: string; size_mb: number }>('/backup', {
+    method: 'POST',
+    body: JSON.stringify({ destination }),
+  });
+
 // ── Graph ────────────────────────────────────────────────────────────────────
 export const getGraph = (projectId = 'default') =>
   req<{

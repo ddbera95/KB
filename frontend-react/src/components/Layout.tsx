@@ -4,12 +4,13 @@ import {
   Search, Plus, ChevronRight, ChevronDown,
   FileText, Network, Layers, BookOpen,
   MoreHorizontal, Trash2, Edit2, FolderOpen,
+  HardDrive, Loader2,
 } from 'lucide-react';
 import type { Collection, Document, Project } from '../types';
 import {
   getCollections, getCollection, getDocumentChildren,
   createDocument, createCollection,
-  deleteProject, updateProject,
+  deleteProject, updateProject, createBackup,
 } from '../api';
 import { useProject } from '../context';
 
@@ -263,6 +264,91 @@ function ProjectSwitcher() {
   );
 }
 
+// ── Backup panel (pinned to sidebar bottom) ───────────────────────────────────
+function BackupPanel() {
+  const [open, setOpen] = useState(false);
+  const [dest, setDest] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ path: string; mb: number } | null>(null);
+  const [err, setErr] = useState('');
+
+  const run = async () => {
+    if (!dest.trim()) return;
+    setLoading(true); setErr(''); setResult(null);
+    try {
+      const r = await createBackup(dest.trim());
+      setResult({ path: r.backup_path, mb: r.size_mb });
+    } catch (e: any) {
+      setErr(e.message ?? 'Backup failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+      <button
+        onClick={() => { setOpen(p => !p); setResult(null); setErr(''); }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          padding: '10px 14px', background: 'none', border: 'none',
+          color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit',
+          cursor: 'pointer', textAlign: 'left',
+          transition: 'background 0.1s, color 0.1s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--text)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text2)'; }}
+      >
+        <HardDrive size={14} style={{ flexShrink: 0 }} />
+        Backup Data
+      </button>
+
+      {open && (
+        <div style={{ padding: '0 12px 12px' }}>
+          <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8, lineHeight: 1.5 }}>
+            Copies the entire <code style={{ background: 'var(--bg3)', padding: '1px 4px', borderRadius: 3, fontSize: 11 }}>data/</code> folder to your chosen location.
+          </p>
+
+          <input
+            className="modal-input"
+            style={{ marginTop: 0, fontSize: 12.5, marginBottom: 8 }}
+            placeholder="Destination path e.g. /home/user/backups"
+            value={dest}
+            onChange={e => setDest(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && run()}
+          />
+
+          <button
+            className="btn primary"
+            style={{ width: '100%', justifyContent: 'center', fontSize: 12.5 }}
+            onClick={run}
+            disabled={loading || !dest.trim()}
+          >
+            {loading
+              ? <><Loader2 size={13} className="spin" /> Backing up…</>
+              : <><HardDrive size={13} /> Create Backup</>
+            }
+          </button>
+
+          {result && (
+            <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 6 }}>
+              <div style={{ fontSize: 12, color: '#4ade80', fontWeight: 600, marginBottom: 2 }}>✓ Backup created</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', wordBreak: 'break-all' }}>{result.path}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{result.mb.toFixed(1)} MB</div>
+            </div>
+          )}
+
+          {err && (
+            <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, fontSize: 12, color: '#f87171' }}>
+              {err}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Sidebar ──────────────────────────────────────────────────────────────
 export default function Layout({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
@@ -411,6 +497,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </div>
+
+        {/* ── Backup ── */}
+        <BackupPanel />
       </aside>
 
       {/* ── Main ── */}
