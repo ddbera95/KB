@@ -9,6 +9,7 @@ frontend-react/.svelte-kit/
 frontend-react/.env
 frontend-react/build/
 frontend-react/dist/
+frontend-react/src/**/*.js
 mcp-server/node_modules/
 
 # ── Runtime data (never commit — recreated on startup) ────────────

@@ -110,7 +110,7 @@ This will:
 | Service | URL |
 |---|---|
 | Backend API | http://localhost:3000 |
-| Frontend UI | http://localhost:5173 |
+| Frontend UI | http://localhost:5173 (dev) |
 
 Or use Make:
 
@@ -119,6 +119,19 @@ make setup   # first-time install
 make start   # start both servers
 make build   # production build
 ```
+
+### Access from other devices on your network (LAN)
+
+Build the frontend once, then the Rust backend serves everything on a single port:
+
+```bash
+cd frontend-react && npm run build
+```
+
+Then open **`http://<your-machine-ip>:3000/`** on any device on the same network.
+
+> The Vite dev server (port 5173) uses WebSocket for hot-reload which breaks over LAN.
+> The production build served by the Rust backend on port 3000 has no such limitation.
 
 ---
 
