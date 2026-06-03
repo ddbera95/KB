@@ -80,6 +80,10 @@ export const uploadAttachment = async (docId: string, file: File): Promise<Attac
 export const getAttachmentUrl = (id: string) => `${BASE}/attachments/${id}`;
 
 // ── Backup ───────────────────────────────────────────────────────────────────
+export const browseDir = (path?: string) => {
+  const qs = path ? `?path=${encodeURIComponent(path)}` : '';
+  return req<{ current: string; parent: string | null; entries: { name: string; path: string; is_dir: boolean }[] }>(`/backup/browse${qs}`);
+};
 export const createBackup = (destination: string) =>
   req<{ backup_path: string; size_mb: number }>('/backup', {
     method: 'POST',

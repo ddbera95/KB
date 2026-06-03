@@ -10,7 +10,7 @@ import type { Collection, Document, Project } from '../types';
 import {
   getCollections, getCollection, getDocumentChildren,
   createDocument, createCollection,
-  deleteProject, updateProject, createBackup,
+  deleteProject, updateProject, createBackup, browseDir,
 } from '../api';
 import { useProject } from '../context';
 
@@ -264,88 +264,202 @@ function ProjectSwitcher() {
   );
 }
 
+// ── Directory picker modal ────────────────────────────────────────────────────
+function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; onClose: () => void }) {
+  const [current, setCurrent] = useState('');
+  const [parent, setParent] = useState<string | null>(null);
+  const [entries, setEntries] = useState<{ name: string; path: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+
+  const navigate = async (path?: string) => {
+    setLoading(true); setErr('');
+    try {
+      const r = await browseDir(path);
+      setCurrent(r.current);
+      setParent(r.parent ?? null);
+      setEntries(r.entries.filter(e => e.is_dir));
+    } catch (e: any) {
+      setErr(e.message ?? 'Cannot open directory');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { navigate(); }, []);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ width: 480 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-title">Select Backup Destination</span>
+          <button className="btn icon-btn" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Current path bar */}
+        <div style={{ padding: '8px 20px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text2)', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+          {current || '…'}
+        </div>
+
+        {/* Directory list */}
+        <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+          {loading && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--muted)' }}><Loader2 size={18} className="spin" /></div>}
+          {err && <div style={{ padding: '12px 20px', color: 'var(--danger)', fontSize: 13 }}>{err}</div>}
+
+          {!loading && !err && (
+            <>
+              {/* Up one level */}
+              {parent !== null && (
+                <button
+                  onClick={() => navigate(parent)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit', borderBottom: '1px solid var(--border)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg3)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  <span style={{ fontSize: 16 }}>↑</span> .. (go up)
+                </button>
+              )}
+
+              {entries.length === 0 && (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>No subdirectories</div>
+              )}
+
+              {entries.map(e => (
+                <button
+                  key={e.path}
+                  onClick={() => navigate(e.path)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit' }}
+                  onMouseEnter={el => (el.currentTarget.style.background = 'var(--bg3)')}
+                  onMouseLeave={el => (el.currentTarget.style.background = 'none')}
+                >
+                  <span style={{ fontSize: 16 }}>📁</span>
+                  {e.name}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button
+            className="btn primary"
+            disabled={!current}
+            onClick={() => { onSelect(current); onClose(); }}
+          >
+            Select "{current.split('/').pop() || current}"
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Backup panel (pinned to sidebar bottom) ───────────────────────────────────
 function BackupPanel() {
   const [open, setOpen] = useState(false);
   const [dest, setDest] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [backing, setBacking] = useState(false);
   const [result, setResult] = useState<{ path: string; mb: number } | null>(null);
   const [err, setErr] = useState('');
 
   const run = async () => {
     if (!dest.trim()) return;
-    setLoading(true); setErr(''); setResult(null);
+    setBacking(true); setErr(''); setResult(null);
     try {
       const r = await createBackup(dest.trim());
       setResult({ path: r.backup_path, mb: r.size_mb });
     } catch (e: any) {
       setErr(e.message ?? 'Backup failed');
     } finally {
-      setLoading(false);
+      setBacking(false);
     }
   };
 
   return (
-    <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-      <button
-        onClick={() => { setOpen(p => !p); setResult(null); setErr(''); }}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-          padding: '10px 14px', background: 'none', border: 'none',
-          color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit',
-          cursor: 'pointer', textAlign: 'left',
-          transition: 'background 0.1s, color 0.1s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--text)'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text2)'; }}
-      >
-        <HardDrive size={14} style={{ flexShrink: 0 }} />
-        Backup Data
-      </button>
+    <>
+      <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+        <button
+          onClick={() => { setOpen(p => !p); setResult(null); setErr(''); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+            padding: '10px 14px', background: 'none', border: 'none',
+            color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit',
+            cursor: 'pointer', textAlign: 'left',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--text)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text2)'; }}
+        >
+          <HardDrive size={14} style={{ flexShrink: 0 }} />
+          Backup Data
+        </button>
 
-      {open && (
-        <div style={{ padding: '0 12px 12px' }}>
-          <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8, lineHeight: 1.5 }}>
-            Copies the entire <code style={{ background: 'var(--bg3)', padding: '1px 4px', borderRadius: 3, fontSize: 11 }}>data/</code> folder to your chosen location.
-          </p>
+        {open && (
+          <div style={{ padding: '0 12px 12px' }}>
+            <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8, lineHeight: 1.5 }}>
+              Copies the entire <code style={{ background: 'var(--bg3)', padding: '1px 4px', borderRadius: 3, fontSize: 11 }}>data/</code> folder to the selected location.
+            </p>
 
-          <input
-            className="modal-input"
-            style={{ marginTop: 0, fontSize: 12.5, marginBottom: 8 }}
-            placeholder="Destination path e.g. /home/user/backups"
-            value={dest}
-            onChange={e => setDest(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && run()}
-          />
-
-          <button
-            className="btn primary"
-            style={{ width: '100%', justifyContent: 'center', fontSize: 12.5 }}
-            onClick={run}
-            disabled={loading || !dest.trim()}
-          >
-            {loading
-              ? <><Loader2 size={13} className="spin" /> Backing up…</>
-              : <><HardDrive size={13} /> Create Backup</>
-            }
-          </button>
-
-          {result && (
-            <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 6 }}>
-              <div style={{ fontSize: 12, color: '#4ade80', fontWeight: 600, marginBottom: 2 }}>✓ Backup created</div>
-              <div style={{ fontSize: 11, color: 'var(--text2)', wordBreak: 'break-all' }}>{result.path}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{result.mb.toFixed(1)} MB</div>
+            {/* Destination selector */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <div
+                onClick={() => setShowPicker(true)}
+                style={{
+                  flex: 1, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--border)',
+                  borderRadius: 6, fontSize: 12, color: dest ? 'var(--text)' : 'var(--muted)',
+                  cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  transition: 'border-color 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+              >
+                {dest || 'Click to choose folder…'}
+              </div>
+              <button
+                className="btn"
+                style={{ fontSize: 12, padding: '4px 10px', flexShrink: 0 }}
+                onClick={() => setShowPicker(true)}
+              >
+                Browse
+              </button>
             </div>
-          )}
 
-          {err && (
-            <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, fontSize: 12, color: '#f87171' }}>
-              {err}
-            </div>
-          )}
-        </div>
+            <button
+              className="btn primary"
+              style={{ width: '100%', justifyContent: 'center', fontSize: 12.5 }}
+              onClick={run}
+              disabled={backing || !dest.trim()}
+            >
+              {backing
+                ? <><Loader2 size={13} className="spin" /> Backing up…</>
+                : <><HardDrive size={13} /> Create Backup</>}
+            </button>
+
+            {result && (
+              <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 6 }}>
+                <div style={{ fontSize: 12, color: '#4ade80', fontWeight: 600, marginBottom: 2 }}>✓ Backup created</div>
+                <div style={{ fontSize: 11, color: 'var(--text2)', wordBreak: 'break-all' }}>{result.path}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{result.mb.toFixed(1)} MB</div>
+              </div>
+            )}
+
+            {err && (
+              <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, fontSize: 12, color: '#f87171' }}>
+                {err}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {showPicker && (
+        <DirPicker
+          onSelect={path => setDest(path)}
+          onClose={() => setShowPicker(false)}
+        />
       )}
-    </div>
+    </>
   );
 }
 
