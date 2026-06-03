@@ -143,7 +143,7 @@ function DropdownProjectRow({
           <MoreHorizontal size={13} />
         </button>
         {menuOpen && (
-          <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 2, width: 148, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 7, padding: 4, zIndex: 9999, boxShadow: '0 8px 24px rgba(0,0,0,.6)' }}>
+          <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 2, width: 148, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 7, padding: 4, zIndex: 9999, boxShadow: '0 -8px 24px rgba(0,0,0,.6)' }}>
             <button className="sidebar-item" style={{ gap: 8, fontSize: 12.5 }} onClick={() => { setEditing(true); setMenuOpen(false); }}>
               <Edit2 size={12} /> Rename
             </button>
@@ -212,10 +212,10 @@ function ProjectSwitcher() {
         {/* ── dropdown: all projects + options ── */}
         {open && (
           <div style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 500,
+            position: 'absolute', bottom: '100%', left: 0, right: 0, zIndex: 500,
             background: 'var(--bg2)', border: '1px solid var(--border)',
-            borderTop: 'none', boxShadow: '0 8px 28px rgba(0,0,0,.5)',
-            borderRadius: '0 0 8px 8px', paddingBottom: 4,
+            borderBottom: 'none', boxShadow: '0 -8px 28px rgba(0,0,0,.5)',
+            borderRadius: '8px 8px 0 0', paddingTop: 4,
             // No overflow:hidden — lets the ⋯ submenu render outside the container
           }}>
             <div style={{ padding: '6px 14px 4px', fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
