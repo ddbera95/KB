@@ -268,6 +268,28 @@ input, textarea { font-family: inherit; }
 .bn-container { --bn-colors-editor-background: transparent !important; }
 .bn-editor { padding: 0 !important; }
 
+/* ── Syntax highlighting for code blocks ── */
+.bn-editor pre,
+.bn-block-content pre {
+  background: #1e2030 !important;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 1rem 1.25rem !important;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.bn-editor pre code,
+.bn-block-content pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace !important;
+  font-size: 0.875em !important;
+  line-height: 1.65 !important;
+  white-space: pre !important;
+}
+
 /* Remove nested list vertical guide line */
 .bn-block-group .bn-block-group {
   border-left: none !important;
