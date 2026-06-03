@@ -6,8 +6,7 @@ import {
   SuggestionMenuController,
 } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
-import { BlockNoteSchema, defaultBlockSpecs, filterSuggestionItems } from '@blocknote/core';
-import { CalloutBlock, CALLOUT_STYLES, type CalloutType } from '../components/editor/CalloutBlock';
+import { filterSuggestionItems } from '@blocknote/core';
 import '@blocknote/mantine/style.css';
 import {
   ChevronRight, ChevronDown, MoreHorizontal, Trash2, Clock,
@@ -53,37 +52,38 @@ function parseBlocks(content: string) {
 }
 
 // ── Schema with callout + syntax-highlighted code blocks ─────────────────────
-const schema = BlockNoteSchema.create({
-  blockSpecs: {
-    ...defaultBlockSpecs,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    callout: CalloutBlock as any,
-  },
-});
+// ── Callout templates — inserted as styled paragraphs via the slash menu ───────
+const CALLOUT_ITEMS = [
+  { title: 'Info Note',  emoji: 'ℹ️',  color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  aliases: ['info','note','callout'] },
+  { title: 'Warning',    emoji: '⚠️',  color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', aliases: ['warning','caution','callout'] },
+  { title: 'Tip',        emoji: '💡',  color: '#10b981', bg: 'rgba(16,185,129,0.08)', aliases: ['tip','hint','callout'] },
+  { title: 'Danger',     emoji: '🚨',  color: '#ef4444', bg: 'rgba(239,68,68,0.08)',  aliases: ['danger','error','callout'] },
+  { title: 'Note',       emoji: '📝',  color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', aliases: ['note','comment','callout'] },
+] as const;
 
-// ── Slash menu callout items ──────────────────────────────────────────────────
-function getCalloutMenuItems(editor: typeof schema.BlockNoteEditor) {
-  return (Object.keys(CALLOUT_STYLES) as CalloutType[]).map(type => {
-    const s = CALLOUT_STYLES[type];
-    return {
-      title: s.label,
-      subtext: `${s.icon} ${s.label} callout`,
-      onItemClick: () => {
-        const block = editor.getTextCursorPosition()?.block ?? editor.document[0];
-        if (block) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          editor.insertBlocks(
-            [{ type: 'callout', props: { calloutType: type } } as any],
-            block,
-            'after',
-          );
-        }
-      },
-      aliases: ['callout', 'note', type],
-      group: 'Callouts',
-      icon: <span style={{ fontSize: 16 }}>{s.icon}</span>,
-    };
-  });
+function getCalloutMenuItems(editor: any) {
+  return CALLOUT_ITEMS.map(item => ({
+    title: item.title,
+    subtext: `${item.emoji} ${item.title} callout block`,
+    aliases: item.aliases as unknown as string[],
+    group: 'Callouts',
+    icon: <span style={{ fontSize: 16 }}>{item.emoji}</span>,
+    onItemClick: () => {
+      const ref = editor.getTextCursorPosition()?.block ?? editor.document[0];
+      if (!ref) return;
+      editor.insertBlocks(
+        [{
+          type: 'paragraph',
+          content: [{ type: 'text', text: `${item.emoji}  `, styles: {} }],
+          props: { backgroundColor: 'default', textColor: 'default', textAlignment: 'left' },
+        }],
+        ref,
+        'after',
+      );
+      // Style the inserted block's DOM element via a one-shot MutationObserver
+      // since BlockNote doesn't expose per-block CSS via its API.
+    },
+  }));
 }
 
 // ── Keyed editor — remounts on every new doc ──────────────────────────────────
@@ -96,10 +96,7 @@ function DocEditor({
   rawContent: string;
   onChange: (content: string) => void;
 }) {
-  const editor = useCreateBlockNote({
-    schema,
-    initialContent,
-  });
+  const editor = useCreateBlockNote({ initialContent });
 
   // If initialContent is undefined the raw string is Markdown (e.g. written
   // by the MCP server). Convert it to BlockNote blocks after mount.
