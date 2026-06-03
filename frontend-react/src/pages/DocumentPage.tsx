@@ -39,12 +39,34 @@ function parseBlocks(content: string) {
 // ── Keyed editor — remounts on every new doc ──────────────────────────────────
 function DocEditor({
   initialContent,
+  rawContent,
   onChange,
 }: {
   initialContent: any[] | undefined;
+  rawContent: string;
   onChange: (content: string) => void;
 }) {
   const editor = useCreateBlockNote({ initialContent });
+
+  // If initialContent is undefined the raw string is Markdown (e.g. written
+  // by the MCP server). Convert it to BlockNote blocks after mount.
+  useEffect(() => {
+    if (initialContent !== undefined) return;
+    if (!rawContent || rawContent.trim() === '') return;
+
+    // tryParseMarkdownToBlocks returns a Promise in newer BlockNote versions
+    // and Block[] synchronously in older ones — handle both.
+    const result = editor.tryParseMarkdownToBlocks(rawContent);
+    const apply = (blocks: any[]) => {
+      if (blocks.length > 0) editor.replaceBlocks(editor.document, blocks);
+    };
+    if (result && typeof (result as any).then === 'function') {
+      (result as any).then(apply);
+    } else {
+      apply(result as any);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <BlockNoteView
       editor={editor}
@@ -348,6 +370,7 @@ export default function DocumentPage() {
               <DocEditor
                 key={editorKey}
                 initialContent={initialBlocks}
+                rawContent={latestContent.current}
                 onChange={markDirty}
               />
             </div>
