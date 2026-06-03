@@ -267,3 +267,98 @@ input, textarea { font-family: inherit; }
 /* ── blocknote overrides ── */
 .bn-container { --bn-colors-editor-background: transparent !important; }
 .bn-editor { padding: 0 !important; }
+
+/* ── Modern table styles ─────────────────────────────────────────────────── */
+.tableWrapper {
+  overflow-x: auto;
+  margin: 1rem 0;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+
+.tableWrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  min-width: 400px;
+}
+
+/* Header row */
+.tableWrapper table thead tr,
+.tableWrapper table tr:first-child {
+  background: var(--bg2);
+}
+
+.tableWrapper table th,
+.tableWrapper table tr:first-child td {
+  background: var(--bg2) !important;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text2);
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--border);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.tableWrapper table th:last-child,
+.tableWrapper table tr:first-child td:last-child {
+  border-right: none;
+}
+
+/* Body rows */
+.tableWrapper table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: top;
+  line-height: 1.6;
+  transition: background 0.1s;
+}
+
+.tableWrapper table td:last-child {
+  border-right: none;
+}
+
+.tableWrapper table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Zebra striping */
+.tableWrapper table tbody tr:nth-child(even) td,
+.tableWrapper table tr:nth-child(even) td {
+  background: rgba(255,255,255,0.02);
+}
+
+/* Hover row highlight */
+.tableWrapper table tbody tr:hover td,
+.tableWrapper table tr:not(:first-child):hover td {
+  background: var(--bg3) !important;
+}
+
+/* Selected cell */
+.tableWrapper table .selectedCell,
+.tableWrapper .selectedCell {
+  background: color-mix(in srgb, var(--accent) 12%, transparent) !important;
+  outline: 2px solid var(--accent) !important;
+  outline-offset: -2px;
+}
+
+/* Column resize handle */
+.tableWrapper .column-resize-handle {
+  background-color: var(--accent);
+  width: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.tableWrapper:hover .column-resize-handle {
+  opacity: 0.4;
+}
+.tableWrapper .column-resize-handle:hover,
+.tableWrapper .column-resize-handle.active {
+  opacity: 1;
+}
