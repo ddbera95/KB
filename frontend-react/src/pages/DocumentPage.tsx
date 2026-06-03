@@ -183,16 +183,57 @@ function DocEditor({
     loadDictionary(runCheck);
   }, [spellCheckOn, runCheck]);
 
+  // Expand codeBlock blocks whose language is "markdown" or "md" into
+  // actual rendered BlockNote blocks (headings, lists, paragraphs).
+  // This lets users use ```markdown fences as rich-text templates.
+  const expandMarkdownBlocks = useCallback(async (blocks: any[]): Promise<any[]> => {
+    const out: any[] = [];
+    for (const b of blocks) {
+      const lang = (b.props?.language ?? '').toLowerCase();
+      const text = Array.isArray(b.content)
+        ? b.content.map((c: any) => c.text ?? '').join('')
+        : '';
+      const trimmed = text.trim();
+
+      // Expand when:
+      // 1. Language is explicitly "markdown" or "md"
+      // 2. Language is empty/text and content clearly looks like markdown
+      //    (starts with a heading marker # or ## or ####)
+      const isMarkdownLang = lang === 'markdown' || lang === 'md';
+      const looksLikeMarkdown = (lang === '' || lang === 'text') && /^#{1,6}\s/.test(trimmed);
+
+      if (b.type === 'codeBlock' && (isMarkdownLang || looksLikeMarkdown) && trimmed) {
+        try {
+          const inner: any = editor.tryParseMarkdownToBlocks(wikiLinksToMarkdown(trimmed));
+          const resolved: any[] = typeof inner?.then === 'function' ? await inner : inner;
+          out.push(...resolved);
+          continue;
+        } catch {}
+      }
+      out.push(b);
+    }
+    return out;
+  }, [editor]);
+
   // If initialContent is undefined the raw string is Markdown (e.g. written
   // by the MCP server). Convert it to BlockNote blocks after mount.
   useEffect(() => {
-    if (initialContent !== undefined) return;
+    if (initialContent !== undefined) {
+      // Still expand any markdown code blocks in stored JSON content
+      expandMarkdownBlocks(editor.document as any).then(expanded => {
+        if (JSON.stringify(expanded) !== JSON.stringify(editor.document)) {
+          editor.replaceBlocks(editor.document, expanded);
+        }
+      });
+      return;
+    }
     if (!rawContent || rawContent.trim() === '') return;
 
     const result = editor.tryParseMarkdownToBlocks(wikiLinksToMarkdown(rawContent));
-    const apply = (blocks: any[]) => {
+    const apply = async (blocks: any[]) => {
       if (blocks.length > 0) {
-        editor.replaceBlocks(editor.document, blocks);
+        const expanded = await expandMarkdownBlocks(blocks);
+        editor.replaceBlocks(editor.document, expanded);
       }
     };
     if (result && typeof (result as any).then === 'function') {
