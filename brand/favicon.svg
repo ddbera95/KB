@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><linearGradient id="gf" gradientUnits="userSpaceOnUse" x1="7.68" y1="32" x2="56.32" y2="32"><stop offset="0" stop-color="#6fcbe4"></stop><stop offset="0.30" stop-color="#2f93c9"></stop><stop offset="0.50" stop-color="#2b6f9e"></stop><stop offset="0.66" stop-color="#6f7d72"></stop><stop offset="1" stop-color="#d8a86a"></stop></linearGradient>
+    <clipPath id="rc"><rect x="0" y="0" width="64" height="64" rx="14" ry="14"></rect></clipPath>
+  </defs>
+  <g clip-path="url(#rc)">
+    <rect x="0" y="0" width="64" height="64" fill="#0c1a2b"></rect>
+    <g transform="translate(32,32) scale(0.1888) translate(-200,-205)">
+      <g><polyline points="120,268 120,150 192,258 222,150" fill="none" stroke="url(#gf)" stroke-width="24" stroke-linejoin="round" stroke-linecap="butt"></polyline><line x1="222" y1="150" x2="331.6" y2="274" stroke="url(#gf)" stroke-width="24" stroke-linecap="butt"></line><line x1="331.6" y1="122" x2="222" y2="272" stroke="url(#gf)" stroke-width="24" stroke-linecap="butt"></line></g><g><circle cx="200" cy="46" r="16" fill="url(#gf)"></circle><circle cx="331.6" cy="122" r="16" fill="url(#gf)"></circle><circle cx="331.6" cy="274" r="16" fill="url(#gf)"></circle><circle cx="200" cy="350" r="16" fill="url(#gf)"></circle><circle cx="68.4" cy="274" r="16" fill="url(#gf)"></circle><circle cx="68.4" cy="122" r="16" fill="url(#gf)"></circle><circle cx="222" cy="150" r="16" fill="url(#gf)"></circle><circle cx="222" cy="272" r="16" fill="url(#gf)"></circle><circle cx="120" cy="268" r="16" fill="url(#gf)"></circle><circle cx="271" cy="205" r="16" fill="url(#gf)"></circle></g>
+    </g>
+  </g>
+</svg>
