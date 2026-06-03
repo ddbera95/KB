@@ -31,8 +31,10 @@ export default function HomePage() {
   return (
     <div className="page-scroll">
       <div className="home-wrap">
-        <h1 className="home-title">Knowledge Base</h1>
-        <p className="home-sub">Your personal wiki. Type <kbd style={{ background: 'var(--bg3)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>/</kbd> in any page to insert blocks.</p>
+        <h1 className="home-title">Mimix</h1>
+        <p style={{ fontSize: 15, color: 'var(--text2)', marginBottom: 32, fontStyle: 'italic', marginTop: -4 }}>
+          Knowledge, without the noise.
+        </p>
 
         <div className="home-grid">
           <div className="home-card" onClick={newPage}>

@@ -533,16 +533,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Sidebar ── */}
       <aside className="sidebar">
 
-        {/* ── PROJECT SWITCHER — compact, at very top ── */}
-        <ProjectSwitcher />
-
-        {/* ── APP NAME + SEARCH ── */}
-        <div className="sidebar-header">
-          <span className="sidebar-logo">KB</span>
-          <button className="btn icon-btn" onClick={() => nav('/search')} title="Search"><Search size={15} /></button>
+        {/* ── MIMIX LOGO — top of sidebar ── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 14px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0,
+        }}>
+          <img src="/mimix-logo.svg" alt="Mimix" style={{ height: 28, width: 'auto' }} />
+          <button className="btn icon-btn" onClick={() => nav('/search')} title="Search">
+            <Search size={15} />
+          </button>
         </div>
 
-        {/* ── NAV + COLLECTIONS ── */}
+        {/* ── NAV + COLLECTIONS (scrollable middle) ── */}
         <div className="sidebar-scroll">
           <div className="sidebar-section">
             <button className={`sidebar-item ${active('/') ? 'active' : ''}`} onClick={() => nav('/')}>
@@ -611,6 +613,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </div>
+
+        {/* ── PROJECT SWITCHER — above backup at bottom ── */}
+        <ProjectSwitcher />
 
         {/* ── Backup ── */}
         <BackupPanel />
