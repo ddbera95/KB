@@ -39,14 +39,59 @@ const KNOWN_BLOCK_TYPES = new Set([
   'callout','toggleListItem',
 ]);
 
+// Convert [[Page Title]] wiki links to standard Markdown links so BlockNote
+// renders them as clickable links. Clicking navigates to /search?q=title
+// which finds the target page via full-text search.
+function wikiLinksToMarkdown(md: string): string {
+  return md.replace(/\[\[([^\]]+)\]\]/g, (_, title) =>
+    `[${title}](/search?q=${encodeURIComponent(title)})`
+  );
+}
+
+// Walk BlockNote JSON blocks and expand [[wiki links]] inside text nodes
+// into actual link inline content so they render as clickable links.
+function expandWikiLinksInBlocks(blocks: any[]): any[] {
+  return blocks.map(block => ({
+    ...block,
+    content: expandInlineContent(block.content),
+    children: block.children?.length ? expandWikiLinksInBlocks(block.children) : block.children,
+  }));
+}
+
+function expandInlineContent(content: any): any {
+  if (!Array.isArray(content)) return content;
+  const result: any[] = [];
+  for (const node of content) {
+    if (node.type !== 'text' || !node.text?.includes('[[')) {
+      result.push(node);
+      continue;
+    }
+    // Split on [[...]] and rebuild as text + link nodes
+    const parts = node.text.split(/(\[\[[^\]]+\]\])/g);
+    for (const part of parts) {
+      const m = part.match(/^\[\[(.+)\]\]$/);
+      if (m) {
+        result.push({
+          type: 'link',
+          href: `/search?q=${encodeURIComponent(m[1])}`,
+          content: [{ type: 'text', text: m[1], styles: {} }],
+        });
+      } else if (part) {
+        result.push({ type: 'text', text: part, styles: node.styles ?? {} });
+      }
+    }
+  }
+  return result;
+}
+
 function parseBlocks(content: string) {
   try {
     const p = JSON.parse(content);
     if (!Array.isArray(p) || p.length === 0) return undefined;
-    // Filter out any block types not in the current schema to prevent
-    // ProseMirror "node type undefined" crashes on initialContent load.
     const safe = p.filter((b: any) => b?.type && KNOWN_BLOCK_TYPES.has(b.type));
-    return safe.length > 0 ? safe : undefined;
+    if (safe.length === 0) return undefined;
+    // Expand [[wiki links]] in JSON blocks to proper link nodes
+    return expandWikiLinksInBlocks(safe);
   } catch {}
   return undefined;
 }
@@ -104,7 +149,7 @@ function DocEditor({
     if (initialContent !== undefined) return;
     if (!rawContent || rawContent.trim() === '') return;
 
-    const result = editor.tryParseMarkdownToBlocks(rawContent);
+    const result = editor.tryParseMarkdownToBlocks(wikiLinksToMarkdown(rawContent));
     const apply = (blocks: any[]) => {
       if (blocks.length > 0) editor.replaceBlocks(editor.document, blocks);
     };
