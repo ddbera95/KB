@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Layers, Plus, Search } from 'lucide-react';
+import { FileText, Layers, Plus, Search, Network } from 'lucide-react';
 import type { Document, Collection } from '../types';
 import { listDocuments, getCollections, createDocument } from '../api';
 import { useProject } from '../context';
@@ -31,8 +31,13 @@ export default function HomePage() {
   return (
     <div className="page-scroll">
       <div className="home-wrap">
-        <h1 className="home-title">Mimix</h1>
-        <p style={{ fontSize: 15, color: 'var(--text2)', marginBottom: 32, fontStyle: 'italic', marginTop: -4 }}>
+        {/* Logo instead of text title */}
+        <img
+          src="/mimix-logo.svg"
+          alt="Mimix"
+          style={{ height: 48, width: 'auto', marginBottom: 10, display: 'block' }}
+        />
+        <p style={{ fontSize: 15, color: 'var(--text2)', marginBottom: 32, fontStyle: 'italic' }}>
           Knowledge, without the noise.
         </p>
 
@@ -49,9 +54,9 @@ export default function HomePage() {
             <div className="home-card-title"><Layers size={14} style={{ marginRight: 6 }} />Collections</div>
             <div className="home-card-sub">{collections.length} collection{collections.length !== 1 ? 's' : ''}</div>
           </div>
-          <div className="home-card" style={{ opacity: 0.5, cursor: 'default' }}>
-            <div className="home-card-title">Graph View</div>
-            <div className="home-card-sub">Coming soon</div>
+          <div className="home-card" onClick={() => nav('/graph')}>
+            <div className="home-card-title"><Network size={14} style={{ marginRight: 6 }} />Graph View</div>
+            <div className="home-card-sub">Visualise page connections</div>
           </div>
         </div>
 
