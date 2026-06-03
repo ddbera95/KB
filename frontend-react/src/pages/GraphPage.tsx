@@ -83,18 +83,27 @@ export default function GraphPage() {
       }
     }
 
-    setStats({ nodes: graphNodes!.length, edges: graphEdges!.length });
+    // Filter out edges whose source or target isn't in the node list
+    // (stale relations referencing deleted/cross-project documents)
+    const nodeIds = new Set(graphNodes!.map(n => n.id));
+    const safeEdges = graphEdges!.filter(
+      e => nodeIds.has(e.source) && nodeIds.has(e.target)
+    );
+
+    setStats({ nodes: graphNodes!.length, edges: safeEdges.length });
     setSelected(null);
     cyRef.current?.destroy();
 
     // degree map for node sizing
     const degreeMap: Record<string, number> = {};
-    graphEdges!.forEach(e => {
+    safeEdges.forEach(e => {
       degreeMap[e.source] = (degreeMap[e.source] || 0) + 1;
       degreeMap[e.target] = (degreeMap[e.target] || 0) + 1;
     });
 
-    const cy = cytoscape({
+    let cy: cytoscape.Core;
+    try {
+    cy = cytoscape({
       container: containerRef.current,
       elements: [
         ...graphNodes!.map(n => ({
@@ -110,7 +119,7 @@ export default function GraphPage() {
             degree: degreeMap[n.id] || 0,
           },
         })),
-        ...graphEdges!.map((e, i) => ({
+        ...safeEdges.map((e, i) => ({
           data: {
             id: `e${i}`,
             source: e.source,
@@ -325,6 +334,11 @@ export default function GraphPage() {
     cy.on('tap', evt => {
       if (evt.target === cy) setSelected(null);
     });
+
+    } catch (cyErr: any) {
+      console.error('Cytoscape init error:', cyErr);
+      setErr('Failed to render graph: ' + cyErr.message);
+    }
 
     setLoading(false);
   }, [layout, project?.id]);
