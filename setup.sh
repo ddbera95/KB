@@ -36,7 +36,7 @@ fi
 # ── Build backend ─────────────────────────────────────────────────────────────
 step "Building Rust backend (release)"
 cargo build --release
-ok "Backend built → target/release/kb"
+ok "Backend built → target/release/mimix"
 
 # ── Frontend dependencies ─────────────────────────────────────────────────────
 step "Installing frontend dependencies"
@@ -48,14 +48,14 @@ step "Installing MCP server dependencies"
 (cd mcp-server && npm install)
 ok "mcp-server/node_modules ready"
 
-step "Installing kb-mcp globally"
-(cd mcp-server && npm install -g . 2>/dev/null) && ok "kb-mcp installed globally" || warn "Global install failed — run: cd mcp-server && npm install -g ."
+step "Installing mimix-mcp globally"
+(cd mcp-server && npm install -g . 2>/dev/null) && ok "mimix-mcp installed globally" || warn "Global install failed — run: cd mcp-server && npm install -g ."
 
 # ── Claude Code MCP registration ──────────────────────────────────────────────
 step "Registering MCP server with Claude Code"
 if command -v claude &>/dev/null; then
-  claude mcp add kb -s user -e KB_API_URL=http://localhost:3000 -- kb-mcp 2>/dev/null \
-    && ok "kb MCP server registered (restart Claude Code to activate)" \
+  claude mcp add mimix -s user -e KB_API_URL=http://localhost:3000 -- mimix-mcp 2>/dev/null \
+    && ok "mimix MCP server registered (restart Claude Code to activate)" \
     || warn "Already registered or registration failed"
 else
   warn "claude CLI not found — skip MCP registration (register manually)"

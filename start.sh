@@ -20,8 +20,8 @@ fi
 set -a; source .env; set +a
 
 # ── Choose binary: release if built, else cargo run ───────────────────────────
-if [ -f target/release/kb ]; then
-  BACKEND_CMD="./target/release/kb"
+if [ -f target/release/mimix ]; then
+  BACKEND_CMD="./target/release/mimix"
   BACKEND_LABEL="backend (release)"
 else
   BACKEND_CMD="cargo run"
@@ -61,8 +61,8 @@ cleanup() {
   kill "$BACKEND_PID"  2>/dev/null || true
   kill "$FRONTEND_PID" 2>/dev/null || true
   # Kill any cargo processes that may have spawned
-  pkill -f "target/debug/kb"   2>/dev/null || true
-  pkill -f "target/release/kb" 2>/dev/null || true
+  pkill -f "target/debug/mimix"   2>/dev/null || true
+  pkill -f "target/release/mimix" 2>/dev/null || true
   echo "Stopped."
   exit 0
 }

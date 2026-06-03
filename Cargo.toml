@@ -1,10 +1,10 @@
 [package]
-name = "kb"
+name = "mimix"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "kb"
+name = "mimix"
 path = "src/main.rs"
 
 [dependencies]

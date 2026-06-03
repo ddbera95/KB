@@ -403,7 +403,7 @@ async function callTool(name, args) {
 // ── MCP Server ────────────────────────────────────────────────────────────────
 const server = new Server(
   {
-    name: "kb",
+    name: "mimix",
     version: "1.0.0",
     description: `Personal Knowledge Base — self-hosted, local-first wiki.
 

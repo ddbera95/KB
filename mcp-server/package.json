@@ -1,9 +1,9 @@
 {
-  "name": "kb-mcp-server",
+  "name": "mimix-mcp-server",
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "kb-mcp": "./index.js"
+    "mimix-mcp": "./index.js"
   },
   "scripts": {
     "start": "node index.js",
