@@ -268,16 +268,55 @@ input, textarea { font-family: inherit; }
 .bn-container { --bn-colors-editor-background: transparent !important; }
 .bn-editor { padding: 0 !important; }
 
-/* ── Code block container styling ── */
+/* ── Code block box ─────────────────────────────────────────────────────── */
+
+/* Outer wrapper created by createCodeBlockSpec */
+.bn-editor [data-content-type="codeBlock"],
+.bn-block-content[data-content-type="codeBlock"] {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+
+/* Language selector bar at the top */
+.bn-editor [data-content-type="codeBlock"] select,
+.bn-block-content[data-content-type="codeBlock"] select {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  background: #0d1117;
+  border: none;
+  border-bottom: 1px solid #30363d;
+  color: #8b949e;
+  font-size: 11px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+/* The pre/code itself */
 .bn-editor pre,
 .bn-block-content pre {
-  border-radius: 8px;
-  border: 1px solid var(--border);
+  background: transparent;
+  padding: 14px 16px;
   overflow-x: auto;
-  margin: 6px 0;
+  margin: 0;
   font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace !important;
   font-size: 0.875em !important;
-  line-height: 1.65 !important;
+  line-height: 1.7 !important;
+}
+
+.bn-editor pre code,
+.bn-block-content pre code {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  color: #e6edf3;
+  white-space: pre;
 }
 
 /* Remove nested list vertical guide line */
