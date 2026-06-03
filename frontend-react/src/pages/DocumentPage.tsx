@@ -7,6 +7,7 @@ import {
 } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
 import { filterSuggestionItems } from '@blocknote/core';
+import { codeBlockOptions } from '@blocknote/code-block';
 import '@blocknote/mantine/style.css';
 import {
   ChevronRight, ChevronDown, MoreHorizontal, Trash2, Clock,
@@ -141,7 +142,7 @@ function DocEditor({
   rawContent: string;
   onChange: (content: string) => void;
 }) {
-  const editor = useCreateBlockNote({ initialContent });
+  const editor = useCreateBlockNote({ initialContent, codeBlock: codeBlockOptions });
 
   // If initialContent is undefined the raw string is Markdown (e.g. written
   // by the MCP server). Convert it to BlockNote blocks after mount.
