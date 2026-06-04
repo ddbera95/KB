@@ -86,16 +86,17 @@ async fn create_collection(
         ));
     }
 
-    // Enforce slug uniqueness.
+    // Enforce slug uniqueness within the same project.
     let slug_taken: Option<String> =
-        sqlx::query_scalar("SELECT id FROM collections WHERE slug = ?")
+        sqlx::query_scalar("SELECT id FROM collections WHERE slug = ? AND project_id = ?")
             .bind(&slug)
+            .bind(&project_id)
             .fetch_optional(&state.db)
             .await?;
 
     if slug_taken.is_some() {
         return Err(AppError::Conflict(format!(
-            "a collection with slug '{}' already exists",
+            "a collection with slug '{}' already exists in this project",
             slug
         )));
     }
@@ -214,17 +215,18 @@ async fn update_collection(
         ));
     }
 
-    // Check that the target slug is not already taken by a *different* row.
+    // Check that the target slug is not already taken by a *different* row in the same project.
     let slug_owner: Option<String> =
-        sqlx::query_scalar("SELECT id FROM collections WHERE slug = ?")
+        sqlx::query_scalar("SELECT id FROM collections WHERE slug = ? AND project_id = ?")
             .bind(&new_slug)
+            .bind(&existing.project_id)
             .fetch_optional(&state.db)
             .await?;
 
     if let Some(owner_id) = slug_owner {
         if owner_id != id {
             return Err(AppError::Conflict(format!(
-                "a collection with slug '{}' already exists",
+                "a collection with slug '{}' already exists in this project",
                 new_slug
             )));
         }
