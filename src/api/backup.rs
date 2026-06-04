@@ -98,7 +98,7 @@ async fn create_backup(
     let backup_dir = dest_root.join(format!("kb-backup-{}", ts));
     std::fs::create_dir_all(&backup_dir)?;
 
-    copy_dir_recursive(&state.data_dir, &backup_dir)?;
+    copy_dir_recursive_excluding(&state.data_dir, &backup_dir, &["backups"])?;
 
     let size_bytes = dir_size(&backup_dir).unwrap_or(0);
     let size_mb = size_bytes as f64 / (1024.0 * 1024.0);
