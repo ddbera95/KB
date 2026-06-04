@@ -31,11 +31,11 @@ export default function HomePage() {
   return (
     <div className="page-scroll">
       <div className="home-wrap">
-        {/* Logo instead of text title */}
+        {/* Logo */}
         <img
           src="/mimix-logo.svg"
           alt="Mimix"
-          style={{ height: 48, width: 'auto', marginBottom: 10, display: 'block' }}
+          style={{ height: 52, width: 'auto', marginBottom: 10, display: 'block', maxWidth: 300 }}
         />
         <p style={{ fontSize: 15, color: 'var(--text2)', marginBottom: 32, fontStyle: 'italic' }}>
           Knowledge, without the noise.
