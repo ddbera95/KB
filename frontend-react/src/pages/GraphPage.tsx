@@ -12,6 +12,20 @@ import {
 import { getGraph } from '../api';
 import { useProject } from '../context';
 
+function useTheme(): 'dark' | 'light' {
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    () => (document.documentElement.getAttribute('data-theme') as 'dark' | 'light') ?? 'dark'
+  );
+  useEffect(() => {
+    const obs = new MutationObserver(() =>
+      setTheme((document.documentElement.getAttribute('data-theme') as 'dark' | 'light') ?? 'dark')
+    );
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
+  return theme;
+}
+
 // ── Layout configurations ─────────────────────────────────────────────────────
 function getLayoutConfig(name: 'cose-bilkent' | 'circle' | 'breadthfirst') {
   const base = { animate: true, animationDuration: 700, fit: true, padding: 80 };
@@ -106,6 +120,7 @@ export default function GraphPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
 
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [stats, setStats] = useState({ nodes: 0, edges: 0 });
@@ -187,14 +202,14 @@ export default function GraphPage() {
             'background-color': 'data(color)',
             'background-opacity': 0.85,
             'label': 'data(label)',
-            'color': '#f1f5f9',
+            'color': theme === 'dark' ? '#f1f5f9' : '#1a1a1a',
             'font-size': '11px',
             'font-weight': '500',
             'font-family': '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
             'text-valign': 'bottom',
             'text-halign': 'center',
             'text-margin-y': 5,
-            'text-outline-color': '#0a0a0a',
+            'text-outline-color': theme === 'dark' ? '#0a0a0a' : '#ffffff',
             'text-outline-width': 3,
             'width': 'mapData(degree, 0, 10, 24, 56)',
             'height': 'mapData(degree, 0, 10, 24, 56)',
@@ -381,7 +396,7 @@ export default function GraphPage() {
   useEffect(() => {
     build();
     return () => cyRef.current?.destroy();
-  }, [project?.id]);
+  }, [project?.id, theme]);
 
   // search highlight
   useEffect(() => {
@@ -415,7 +430,7 @@ export default function GraphPage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '8px 14px',
-        background: 'rgba(26,26,26,0.9)',
+        background: 'var(--bg2)',
         backdropFilter: 'blur(12px)',
         borderBottom: '1px solid var(--border)',
         flexShrink: 0, zIndex: 20,
@@ -490,7 +505,7 @@ export default function GraphPage() {
         {/* dot-grid background */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-          backgroundImage: 'radial-gradient(circle, #2e2e2e 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
           opacity: 0.5,
         }} />
@@ -500,12 +515,12 @@ export default function GraphPage() {
           <div style={{
             position: 'absolute', top: 16, right: 16,
             width: 230,
-            background: 'rgba(26,26,26,0.95)',
+            background: 'var(--bg2)',
             backdropFilter: 'blur(16px)',
             border: '1px solid var(--border)',
             borderRadius: 12,
             overflow: 'hidden',
-            boxShadow: '0 16px 48px rgba(0,0,0,.6)',
+            boxShadow: '0 16px 48px rgba(0,0,0,.3)',
             zIndex: 30,
             animation: 'panel-in 0.18s ease-out',
           }}>
@@ -545,7 +560,7 @@ export default function GraphPage() {
         {/* ── legend ───────────────────────────────────────────────────────────── */}
         <div style={{
           position: 'absolute', bottom: 16, left: 16,
-          background: 'rgba(26,26,26,0.9)',
+          background: 'var(--bg2)',
           backdropFilter: 'blur(12px)',
           border: '1px solid var(--border)',
           borderRadius: 10, padding: '10px 14px',
