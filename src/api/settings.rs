@@ -30,14 +30,14 @@ pub fn save_settings(data_dir: &PathBuf, s: &Settings) -> std::io::Result<()> {
 }
 
 pub async fn run_auto_backup(auto_dir: &str, data_dir: &PathBuf) -> std::io::Result<()> {
-    use crate::api::backup::{copy_dir_recursive, dir_size};
+    use crate::api::backup::dir_size;
     let base      = PathBuf::from(auto_dir);
     let tmp_dir   = base.join("mimix-backup-tmp");
     let final_dir = base.join("mimix-backup");
 
     if tmp_dir.exists() { std::fs::remove_dir_all(&tmp_dir)?; }
     std::fs::create_dir_all(&tmp_dir)?;
-    copy_dir_recursive(data_dir, &tmp_dir)?;
+    crate::api::backup::copy_dir_recursive_excluding(data_dir, &tmp_dir, &["backups"])?;
     if final_dir.exists() { std::fs::remove_dir_all(&final_dir)?; }
     std::fs::rename(&tmp_dir, &final_dir)?;
 

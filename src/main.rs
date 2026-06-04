@@ -56,12 +56,12 @@ async fn main() -> anyhow::Result<()> {
     let pool = db::connect(&config.database_url).await?;
     info!("Database connection established");
 
-    // Backup DB before running migrations
+    // Backup DB before running migrations (stored outside data/ to avoid recursive copies)
     let db_path = std::path::Path::new(&config.database_url)
         .strip_prefix("sqlite://")
         .unwrap_or(std::path::Path::new(&config.database_url));
     if db_path.exists() {
-        let backup_dir = config.data_dir.join("backups");
+        let backup_dir = std::path::PathBuf::from("db-backups");
         std::fs::create_dir_all(&backup_dir)?;
         let timestamp = chrono::Local::now().format("%Y-%m-%d-%H%M%S");
         let backup_path = backup_dir.join(format!("knowledge-{}.db", timestamp));

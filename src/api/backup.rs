@@ -151,13 +151,22 @@ pub fn router() -> Router<AppState> {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 pub fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    copy_dir_recursive_excluding(src, dst, &[])
+}
+
+pub fn copy_dir_recursive_excluding(src: &std::path::Path, dst: &std::path::Path, exclude: &[&str]) -> std::io::Result<()> {
     std::fs::create_dir_all(dst)?;
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if exclude.iter().any(|e| *e == name_str.as_ref()) {
+            continue;
+        }
         let ty = entry.file_type()?;
-        let dst_path = dst.join(entry.file_name());
+        let dst_path = dst.join(&name);
         if ty.is_dir() {
-            copy_dir_recursive(&entry.path(), &dst_path)?;
+            copy_dir_recursive_excluding(&entry.path(), &dst_path, exclude)?;
         } else {
             std::fs::copy(entry.path(), &dst_path)?;
         }
