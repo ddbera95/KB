@@ -7,6 +7,7 @@ use axum::{
 use chrono::Utc;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use uuid::Uuid;
 
 use crate::{
@@ -322,6 +323,8 @@ async fn create_document(
         .fetch_one(&state.db)
         .await?;
 
+    info!(event = "doc.created", id = %id, title = %payload.title);
+
     Ok((StatusCode::CREATED, Json(doc)))
 }
 
@@ -441,6 +444,8 @@ async fn update_document(
         .index_document(&id, &updated_doc.title, &updated_doc.content, &tags, updated_doc.collection_id.as_deref(), updated_doc.brief.as_deref(), &updated_doc.project_id)
         .map_err(|e| AppError::Search(e.to_string()))?;
 
+    info!(event = "doc.updated", id = %id);
+
     Ok(Json(updated_doc))
 }
 
@@ -466,6 +471,8 @@ async fn delete_document(
     sqlx::query("DELETE FROM document_versions WHERE doc_id = ?").bind(&id).execute(&state.db).await?;
 
     state.search.delete_document(&id).map_err(|e| AppError::Search(e.to_string()))?;
+
+    info!(event = "doc.deleted", id = %id);
 
     Ok(StatusCode::NO_CONTENT)
 }

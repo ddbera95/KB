@@ -5,6 +5,9 @@ import '@mantine/core/styles.css';
 import App from './App';
 import './index.css';
 
+const savedTheme = localStorage.getItem('mimix-theme') ?? 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>

@@ -10,6 +10,7 @@ use crate::{
     state::AppState,
 };
 use slug::slugify;
+use tracing::info;
 use uuid::Uuid;
 
 #[derive(Debug, serde::Deserialize)]
@@ -124,6 +125,8 @@ async fn create_collection(
     .bind(&id)
     .fetch_one(&state.db)
     .await?;
+
+    info!(event = "collection.created", id = %id, name = %payload.name);
 
     Ok((StatusCode::CREATED, Json(collection)))
 }
@@ -290,6 +293,8 @@ async fn delete_collection(
             id
         )));
     }
+
+    info!(event = "collection.deleted", id = %id);
 
     Ok(StatusCode::NO_CONTENT)
 }

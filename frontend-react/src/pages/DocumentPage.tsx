@@ -148,6 +148,21 @@ function getCalloutMenuItems(editor: any) {
   }));
 }
 
+// ── Dynamic theme hook — tracks data-theme attribute on <html> ────────────────
+function useCurrentTheme(): 'dark' | 'light' {
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    () => (document.documentElement.getAttribute('data-theme') as 'dark' | 'light') ?? 'dark'
+  );
+  useEffect(() => {
+    const obs = new MutationObserver(() => {
+      setTheme((document.documentElement.getAttribute('data-theme') as 'dark' | 'light') ?? 'dark');
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
+  return theme;
+}
+
 // ── Keyed editor — remounts on every new doc ──────────────────────────────────
 function DocEditor({
   initialContent,
@@ -160,6 +175,7 @@ function DocEditor({
   onChange: (content: string) => void;
   spellCheckOn: boolean;
 }) {
+  const editorTheme = useCurrentTheme();
   const editor = useCreateBlockNote({ schema, initialContent });
   const [errors, setErrors] = useState<SpellError[]>([]);
   const [popup, setPopup] = useState<{ word: string; suggestions: string[]; x: number; y: number } | null>(null);
@@ -247,7 +263,7 @@ function DocEditor({
     <div spellCheck={false} style={{ position: 'relative' }}>
     <BlockNoteView
       editor={editor}
-      theme="dark"
+      theme={editorTheme}
       onChange={() => { onChange(JSON.stringify(editor.document)); if (spellCheckOn) setTimeout(runCheck, 600); }}
       slashMenu={false}
     >

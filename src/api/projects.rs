@@ -7,6 +7,7 @@ use axum::{
 use chrono::Utc;
 use serde::Serialize;
 use slug::slugify;
+use tracing::info;
 use uuid::Uuid;
 
 use crate::{
@@ -102,6 +103,8 @@ async fn create_project(
     .bind(&id)
     .fetch_one(&state.db)
     .await?;
+
+    info!(event = "project.created", id = %id, name = %payload.name);
 
     Ok((StatusCode::CREATED, Json(project)))
 }
@@ -325,6 +328,8 @@ async fn delete_project(
             .delete_document(doc_id)
             .map_err(|e| AppError::Search(e.to_string()))?;
     }
+
+    info!(event = "project.deleted", id = %id);
 
     Ok(StatusCode::NO_CONTENT)
 }

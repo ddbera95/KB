@@ -150,7 +150,7 @@ pub fn router() -> Router<AppState> {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+pub fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dst)?;
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
@@ -165,7 +165,7 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::
     Ok(())
 }
 
-fn dir_size(path: &std::path::Path) -> std::io::Result<u64> {
+pub fn dir_size(path: &std::path::Path) -> std::io::Result<u64> {
     let mut size = 0u64;
     for entry in std::fs::read_dir(path)? {
         let entry = entry?;

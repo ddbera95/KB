@@ -95,6 +95,16 @@ export const mkdirBackup = (parent: string, name: string) =>
     body: JSON.stringify({ parent, name }),
   });
 
+// ── Settings ─────────────────────────────────────────────────────────────────
+export interface AppSettings {
+  manual_backup_dir?: string | null;
+  auto_backup_dir?: string | null;
+  auto_backup_hour?: number | null;
+}
+export const getSettings = () => req<AppSettings>('/settings');
+export const saveSettings = (s: AppSettings) =>
+  req<AppSettings>('/settings', { method: 'PUT', body: JSON.stringify(s) });
+
 // ── Graph ────────────────────────────────────────────────────────────────────
 export const getGraph = (projectId = 'default') =>
   req<{

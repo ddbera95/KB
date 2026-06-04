@@ -4,13 +4,14 @@ import {
   Search, Plus, ChevronRight, ChevronDown,
   FileText, Network, Layers, BookOpen,
   MoreHorizontal, Trash2, Edit2, FolderOpen,
-  HardDrive, Loader2, FolderPlus,
+  HardDrive, Loader2, FolderPlus, Settings, Sun, Moon,
 } from 'lucide-react';
 import type { Collection, Document, Project } from '../types';
 import {
   getCollections, getCollection, getDocumentChildren,
   createDocument, createCollection,
   deleteProject, updateProject, createBackup, browseDir, mkdirBackup,
+  getSettings, saveSettings, type AppSettings,
 } from '../api';
 import { useProject } from '../context';
 
@@ -264,6 +265,18 @@ function ProjectSwitcher() {
   );
 }
 
+// ── Theme hook ───────────────────────────────────────────────────────────────
+function useTheme() {
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    () => (localStorage.getItem('mimix-theme') as 'dark' | 'light') ?? 'dark'
+  );
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('mimix-theme', theme);
+  }, [theme]);
+  return { theme, toggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark') };
+}
+
 // ── Directory picker modal ────────────────────────────────────────────────────
 function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; onClose: () => void }) {
   const [current, setCurrent] = useState('');
@@ -407,110 +420,118 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
   );
 }
 
-// ── Backup panel (pinned to sidebar bottom) ───────────────────────────────────
-function BackupPanel() {
+// ── Settings panel (pinned to sidebar bottom) ─────────────────────────────────
+function SettingsPanel() {
+  const { theme, toggle } = useTheme();
   const [open, setOpen] = useState(false);
-  const [dest, setDest] = useState('');
-  const [showPicker, setShowPicker] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>({});
+  const [showManualPicker, setShowManualPicker] = useState(false);
+  const [showAutoPicker, setShowAutoPicker] = useState(false);
   const [backing, setBacking] = useState(false);
   const [result, setResult] = useState<{ path: string; mb: number } | null>(null);
   const [err, setErr] = useState('');
 
-  const run = async () => {
-    if (!dest.trim()) return;
+  useEffect(() => {
+    if (open) getSettings().then(setSettings).catch(() => {});
+  }, [open]);
+
+  const save = async (updates: Partial<AppSettings>) => {
+    const next = { ...settings, ...updates };
+    setSettings(next);
+    try { await saveSettings(next); } catch {}
+  };
+
+  const runManualBackup = async () => {
+    if (!settings.manual_backup_dir?.trim()) return;
     setBacking(true); setErr(''); setResult(null);
     try {
-      const r = await createBackup(dest.trim());
+      const r = await createBackup(settings.manual_backup_dir);
       setResult({ path: r.backup_path, mb: r.size_mb });
-    } catch (e: any) {
-      setErr(e.message ?? 'Backup failed');
-    } finally {
-      setBacking(false);
-    }
+    } catch (e: any) { setErr(e.message ?? 'Backup failed'); }
+    finally { setBacking(false); }
   };
+
+  const hours = Array.from({ length: 24 }, (_, i) => {
+    const h = i % 12 || 12;
+    const ampm = i < 12 ? 'AM' : 'PM';
+    return { value: i, label: `${h}:00 ${ampm}` };
+  });
 
   return (
     <>
       <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
         <button
           onClick={() => { setOpen(p => !p); setResult(null); setErr(''); }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-            padding: '10px 14px', background: 'none', border: 'none',
-            color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit',
-            cursor: 'pointer', textAlign: 'left',
-          }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', transition: 'background 0.1s, color 0.1s' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--text)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text2)'; }}
         >
-          <HardDrive size={14} style={{ flexShrink: 0 }} />
-          Backup Data
+          <Settings size={14} style={{ flexShrink: 0 }} />
+          Settings
         </button>
 
         {open && (
-          <div style={{ padding: '0 12px 12px' }}>
-            <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8, lineHeight: 1.5 }}>
-              Copies the entire <code style={{ background: 'var(--bg3)', padding: '1px 4px', borderRadius: 3, fontSize: 11 }}>data/</code> folder to the selected location.
-            </p>
+          <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Destination selector */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-              <div
-                onClick={() => setShowPicker(true)}
-                style={{
-                  flex: 1, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--border)',
-                  borderRadius: 6, fontSize: 12, color: dest ? 'var(--text)' : 'var(--muted)',
-                  cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  transition: 'border-color 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-              >
-                {dest || 'Click to choose folder…'}
-              </div>
+            {/* Appearance */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Appearance</div>
               <button
-                className="btn"
-                style={{ fontSize: 12, padding: '4px 10px', flexShrink: 0 }}
-                onClick={() => setShowPicker(true)}
+                onClick={toggle}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer' }}
               >
-                Browse
+                {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+                {theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               </button>
             </div>
 
-            <button
-              className="btn primary"
-              style={{ width: '100%', justifyContent: 'center', fontSize: 12.5 }}
-              onClick={run}
-              disabled={backing || !dest.trim()}
-            >
-              {backing
-                ? <><Loader2 size={13} className="spin" /> Backing up…</>
-                : <><HardDrive size={13} /> Create Backup</>}
-            </button>
-
-            {result && (
-              <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 6 }}>
-                <div style={{ fontSize: 12, color: '#4ade80', fontWeight: 600, marginBottom: 2 }}>✓ Backup created</div>
-                <div style={{ fontSize: 11, color: 'var(--text2)', wordBreak: 'break-all' }}>{result.path}</div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{result.mb.toFixed(1)} MB</div>
+            {/* Manual Backup */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Manual Backup</div>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <div onClick={() => setShowManualPicker(true)} style={{ flex: 1, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, color: settings.manual_backup_dir ? 'var(--text)' : 'var(--muted)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {settings.manual_backup_dir || 'Click to choose folder…'}
+                </div>
+                <button className="btn" style={{ fontSize: 12, padding: '4px 8px', flexShrink: 0 }} onClick={() => setShowManualPicker(true)}>Browse</button>
               </div>
-            )}
+              <button className="btn primary" style={{ width: '100%', justifyContent: 'center', fontSize: 12.5 }} onClick={runManualBackup} disabled={backing || !settings.manual_backup_dir?.trim()}>
+                {backing ? <><Loader2 size={13} className="spin" /> Backing up…</> : <><HardDrive size={13} /> Backup Now</>}
+              </button>
+              {result && <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 6 }}><div style={{ fontSize: 12, color: '#4ade80', fontWeight: 600 }}>✓ Done — {result.mb.toFixed(1)} MB</div><div style={{ fontSize: 11, color: 'var(--text2)', wordBreak: 'break-all' }}>{result.path}</div></div>}
+              {err && <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, fontSize: 12, color: 'var(--danger)' }}>{err}</div>}
+            </div>
 
-            {err && (
-              <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, fontSize: 12, color: '#f87171' }}>
-                {err}
+            {/* Auto Backup */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Auto Backup</div>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <div onClick={() => setShowAutoPicker(true)} style={{ flex: 1, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, color: settings.auto_backup_dir ? 'var(--text)' : 'var(--muted)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {settings.auto_backup_dir || 'Click to choose folder…'}
+                </div>
+                <button className="btn" style={{ fontSize: 12, padding: '4px 8px', flexShrink: 0 }} onClick={() => setShowAutoPicker(true)}>Browse</button>
               </div>
-            )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text2)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={settings.auto_backup_hour != null} onChange={e => save({ auto_backup_hour: e.target.checked ? 2 : null })} />
+                  Enable at
+                </label>
+                <select
+                  value={settings.auto_backup_hour ?? 2}
+                  onChange={e => save({ auto_backup_hour: parseInt(e.target.value) })}
+                  disabled={settings.auto_backup_hour == null}
+                  style={{ flex: 1, padding: '4px 8px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+                >
+                  {hours.map(h => <option key={h.value} value={h.value}>{h.label}</option>)}
+                </select>
+              </div>
+              <div style={{ marginTop: 6, fontSize: 11, color: 'var(--muted)' }}>Keeps one rolling backup — replaces previous on each run.</div>
+            </div>
           </div>
         )}
       </div>
 
-      {showPicker && (
-        <DirPicker
-          onSelect={path => setDest(path)}
-          onClose={() => setShowPicker(false)}
-        />
-      )}
+      {showManualPicker && <DirPicker onSelect={path => { save({ manual_backup_dir: path }); setShowManualPicker(false); }} onClose={() => setShowManualPicker(false)} />}
+      {showAutoPicker && <DirPicker onSelect={path => { save({ auto_backup_dir: path }); setShowAutoPicker(false); }} onClose={() => setShowAutoPicker(false)} />}
     </>
   );
 }
@@ -669,8 +690,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {/* ── PROJECT SWITCHER — above backup at bottom ── */}
         <ProjectSwitcher />
 
-        {/* ── Backup ── */}
-        <BackupPanel />
+        {/* ── Settings ── */}
+        <SettingsPanel />
       </aside>
 
       {/* ── Main ── */}

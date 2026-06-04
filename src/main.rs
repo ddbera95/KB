@@ -25,12 +25,17 @@ async fn main() -> anyhow::Result<()> {
     let _ = dotenvy::dotenv();
 
     // Initialise tracing via RUST_LOG env var (default: info)
+    std::fs::create_dir_all("logs")?;
+    let file_appender = tracing_appender::rolling::daily("logs", "mimix.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "kb=info,tower_http=debug".into()),
+                .unwrap_or_else(|_| "mimix=info,tower_http=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
         .init();
 
     // Load configuration from environment
@@ -100,6 +105,31 @@ async fn main() -> anyhow::Result<()> {
     let addr = format!("0.0.0.0:{}", config.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     info!("Listening on {}", addr);
+
+    // Auto-backup scheduler — checks every minute
+    let sched_data_dir = config.data_dir.clone();
+    tokio::spawn(async move {
+        let mut last_backup_day: Option<(u32, u32, i32)> = None;
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+            let settings = crate::api::settings::load_settings(&sched_data_dir);
+            if let (Some(dir), Some(hour)) = (settings.auto_backup_dir, settings.auto_backup_hour) {
+                if dir.trim().is_empty() { continue; }
+                let now = chrono::Local::now();
+                use chrono::{Datelike, Timelike};
+                let cur = (now.day(), hour as u32, now.year());
+                if now.hour() == hour as u32 && last_backup_day != Some(cur) {
+                    match crate::api::settings::run_auto_backup(&dir, &sched_data_dir).await {
+                        Ok(_) => {
+                            info!("Auto backup completed → {}", dir);
+                            last_backup_day = Some(cur);
+                        }
+                        Err(e) => tracing::warn!("Auto backup failed: {}", e),
+                    }
+                }
+            }
+        }
+    });
 
     axum::serve(listener, app).await?;
 

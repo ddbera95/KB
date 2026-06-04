@@ -8,6 +8,7 @@ pub mod documents;
 pub mod graph;
 pub mod projects;
 pub mod search;
+pub mod settings;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -18,4 +19,5 @@ pub fn router() -> Router<AppState> {
         .nest("/api/attachments", attachments::router())
         .nest("/api/projects", projects::router())
         .nest("/api/backup", backup::router())
+        .nest("/api/settings", settings::router())
 }
