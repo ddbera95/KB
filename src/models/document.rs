@@ -54,6 +54,7 @@ pub struct UpdateDocument {
     pub content: Option<String>,
     pub tags: Option<Vec<String>>,
     pub sort_order: Option<i64>,
+    pub collection_id: Option<String>,
 }
 
 /// Payload accepted when appending text to an existing document.

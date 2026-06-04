@@ -395,6 +395,7 @@ async fn update_document(
     let new_brief: Option<String> = payload.brief.or(doc.brief);
     let new_content = payload.content.as_deref().unwrap_or(&doc.content).to_string();
     let new_sort_order = payload.sort_order.unwrap_or(doc.sort_order);
+    let new_collection_id: Option<String> = payload.collection_id.or(doc.collection_id);
 
     let new_slug = if payload.title.is_some() && new_title != doc.title {
         let base = slug::slugify(&new_title);
@@ -412,7 +413,7 @@ async fn update_document(
 
     sqlx::query(
         "UPDATE documents \
-         SET title = ?, slug = ?, brief = ?, content = ?, sort_order = ?, updated_at = ? \
+         SET title = ?, slug = ?, brief = ?, content = ?, sort_order = ?, collection_id = ?, updated_at = ? \
          WHERE id = ?",
     )
     .bind(&new_title)
@@ -420,6 +421,7 @@ async fn update_document(
     .bind(&new_brief)
     .bind(&new_content)
     .bind(new_sort_order)
+    .bind(&new_collection_id)
     .bind(now)
     .bind(&id)
     .execute(&state.db)
