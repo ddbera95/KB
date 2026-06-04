@@ -216,6 +216,17 @@ const TOOLS = [
       required: ["id", "content"],
     },
   },
+  {
+    name: "kb_delete_page",
+    description: "Permanently delete a KB page by ID. This also deletes all child pages. Use kb_read_page first to confirm the right page.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Document ID to delete" },
+      },
+      required: ["id"],
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────────────
@@ -393,6 +404,11 @@ async function callTool(name, args) {
         body: JSON.stringify({ content: args.content }),
       });
       return `Appended to **${doc.title}**. Content is now ${doc.content.length} characters.`;
+    }
+
+    case "kb_delete_page": {
+      await api(`/documents/${args.id}`, { method: "DELETE" });
+      return `Page \`${args.id}\` deleted.`;
     }
 
     default:
