@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Search, Plus, ChevronRight, ChevronDown,
+  Search, Plus, ChevronRight, ChevronDown, ChevronLeft,
   FileText, Network, Layers, BookOpen,
   MoreHorizontal, Trash2, Edit2, FolderOpen,
   HardDrive, Loader2, FolderPlus, Settings, Sun, Moon,
 } from 'lucide-react';
 import type { Collection, Document, Project } from '../types';
 import {
-  getCollections, getCollection, getDocumentChildren,
+  getCollections, getCollection, getDocumentChildren, listDocuments,
   createDocument, createCollection,
   deleteProject, updateProject, createBackup, browseDir, mkdirBackup,
   getSettings, saveSettings, type AppSettings,
@@ -546,6 +546,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [rootDocsMap, setRootDocsMap] = useState<Record<string, Document[]>>({});
 
+  // Standalone pages (no collection)
+  const [pages, setPages] = useState<Document[]>([]);
+  const [pagesTotal, setPagesTotal] = useState(0);
+  const [pagesPage, setPagesPage] = useState(1);
+  const PAGES_PER_PAGE = 15;
+
   // Collection create
   const [showNewCol, setShowNewCol] = useState(false);
   const [newColName, setNewColName] = useState('');
@@ -556,7 +562,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     getCollections(project.id).then(setCollections).catch(console.error);
     setExpanded(new Set());
     setRootDocsMap({});
+    setPagesPage(1);
   }, [project]);
+
+  // Load standalone pages (no collection) with pagination
+  useEffect(() => {
+    if (!project) return;
+    listDocuments({
+      project_id: project.id,
+      standalone: 'true',
+      page: String(pagesPage),
+      per_page: String(PAGES_PER_PAGE),
+    }).then(res => {
+      setPages(res.data);
+      setPagesTotal(res.total);
+    }).catch(console.error);
+  }, [project, pagesPage]);
 
   const toggleCollection = useCallback(async (id: string) => {
     setExpanded(prev => {
@@ -680,10 +701,56 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             ))}
           </div>
 
-          <div className="sidebar-section" style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 16 }}>
-            <button className="sidebar-item" onClick={() => addPage()}>
-              <Plus size={14} /> New Page
-            </button>
+          {/* ── Standalone Pages ── */}
+          <div className="sidebar-section" style={{ borderTop: '1px solid var(--border)', marginTop: 8, paddingTop: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px', marginBottom: 4 }}>
+              <span className="sidebar-label" style={{ margin: 0 }}>Pages</span>
+              <button className="btn icon-btn" style={{ width: 22, height: 22 }} onClick={() => addPage()} title="New page">
+                <Plus size={13} />
+              </button>
+            </div>
+
+            {pages.length === 0 && (
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', padding: '3px 10px' }}>No standalone pages</div>
+            )}
+
+            {pages.map(doc => (
+              <button
+                key={doc.id}
+                className={`sidebar-item ${loc.pathname === `/doc/${doc.id}` ? 'active' : ''}`}
+                style={{ paddingLeft: 14, fontSize: 13 }}
+                onClick={() => nav(`/doc/${doc.id}`)}
+                title={doc.title}
+              >
+                <FileText size={13} style={{ flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {doc.title}
+                </span>
+              </button>
+            ))}
+
+            {/* Pagination */}
+            {pagesTotal > PAGES_PER_PAGE && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '6px 0', marginTop: 4 }}>
+                <button
+                  className="btn icon-btn" style={{ width: 22, height: 22 }}
+                  disabled={pagesPage === 1}
+                  onClick={() => setPagesPage(p => p - 1)}
+                >
+                  <ChevronLeft size={13} />
+                </button>
+                <span style={{ fontSize: 11, color: 'var(--text2)' }}>
+                  {pagesPage} / {Math.ceil(pagesTotal / PAGES_PER_PAGE)}
+                </span>
+                <button
+                  className="btn icon-btn" style={{ width: 22, height: 22 }}
+                  disabled={pagesPage >= Math.ceil(pagesTotal / PAGES_PER_PAGE)}
+                  onClick={() => setPagesPage(p => p + 1)}
+                >
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
