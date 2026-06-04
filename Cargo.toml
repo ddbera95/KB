@@ -29,3 +29,4 @@ tokio-util = { version = "0.7", features = ["io"] }
 bytes = "1"
 mime_guess = "2"
 dotenvy = "0.15"
+tokio-cron-scheduler = { version = "0.10", features = ["signal"] }

@@ -16,6 +16,8 @@ pub enum AppError {
     BadRequest(String),
     #[error("Conflict: {0}")]
     Conflict(String),
+    #[error("Internal error: {0}")]
+    Internal(String),
 }
 
 impl IntoResponse for AppError {
@@ -27,6 +29,7 @@ impl IntoResponse for AppError {
             AppError::Io(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
             AppError::BadRequest(m) => (StatusCode::BAD_REQUEST, m.clone()),
             AppError::Conflict(m) => (StatusCode::CONFLICT, m.clone()),
+            AppError::Internal(m) => (StatusCode::INTERNAL_SERVER_ERROR, m.clone()),
         };
         (status, Json(serde_json::json!({ "error": message }))).into_response()
     }
