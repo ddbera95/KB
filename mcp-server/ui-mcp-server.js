@@ -502,6 +502,27 @@ const httpServer = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── /api/* → proxy to Rust backend ─────────────────────────────────────────
+  if (url.startsWith("/api/") || url === "/api") {
+    const target = new URL(API);
+    const options = {
+      hostname: target.hostname,
+      port: target.port || 3000,
+      path: url,
+      method: req.method,
+      headers: { ...req.headers, host: target.host },
+    };
+    const proxy = http.request(options, (backRes) => {
+      res.writeHead(backRes.statusCode, backRes.headers);
+      backRes.pipe(res, { end: true });
+    });
+    proxy.on("error", (e) => {
+      res.writeHead(502); res.end(`Backend error: ${e.message}`);
+    });
+    req.pipe(proxy, { end: true });
+    return;
+  }
+
   // ── Everything else → serve React UI (SPA fallback to index.html) ──────────
   try {
     const reqPath = url.split("?")[0];
