@@ -19,7 +19,6 @@ pub struct Collection {
 /// Payload accepted when creating a new collection.
 #[derive(Debug, Deserialize)]
 pub struct CreateCollection {
-    pub project_id: String,
     pub name: String,
     /// Optional – server generates one from `name` when omitted.
     pub slug: Option<String>,
