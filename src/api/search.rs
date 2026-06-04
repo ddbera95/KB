@@ -127,19 +127,28 @@ async fn search_handler(
     let mut items: Vec<SearchResultItem> = Vec::with_capacity(tantivy_results.len());
 
     for sr in tantivy_results {
-        // Skip stale index entries — document was deleted from SQLite but
-        // Tantivy still has the old entry.
+        // Skip stale index entries and documents from other projects.
         let still_exists = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM documents WHERE id = ?",
+            "SELECT COUNT(*) FROM documents WHERE id = ? AND project_id = ?",
         )
         .bind(&sr.id)
+        .bind(&project_id)
         .fetch_one(&state.db)
         .await
         .unwrap_or(0);
 
         if still_exists == 0 {
-            // Clean up the stale entry from the index while we're here
-            let _ = state.search.delete_document(&sr.id);
+            // Only clean from index if the doc is truly gone (not just in another project)
+            let exists_anywhere = sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM documents WHERE id = ?",
+            )
+            .bind(&sr.id)
+            .fetch_one(&state.db)
+            .await
+            .unwrap_or(0);
+            if exists_anywhere == 0 {
+                let _ = state.search.delete_document(&sr.id);
+            }
             continue;
         }
 
