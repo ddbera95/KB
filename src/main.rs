@@ -56,6 +56,19 @@ async fn main() -> anyhow::Result<()> {
     let pool = db::connect(&config.database_url).await?;
     info!("Database connection established");
 
+    // Backup DB before running migrations
+    let db_path = std::path::Path::new(&config.database_url)
+        .strip_prefix("sqlite://")
+        .unwrap_or(std::path::Path::new(&config.database_url));
+    if db_path.exists() {
+        let backup_dir = config.data_dir.join("backups");
+        std::fs::create_dir_all(&backup_dir)?;
+        let timestamp = chrono::Local::now().format("%Y-%m-%d-%H%M%S");
+        let backup_path = backup_dir.join(format!("knowledge-{}.db", timestamp));
+        std::fs::copy(db_path, &backup_path)?;
+        info!("DB backed up to {}", backup_path.display());
+    }
+
     sqlx::migrate!("./migrations").run(&pool).await?;
     info!("Migrations applied");
 
