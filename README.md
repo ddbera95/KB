@@ -135,6 +135,61 @@ Then open **`http://<your-machine-ip>:3000/`** on any device on the same network
 
 ---
 
+## Remote Deployment (shared server)
+
+Deploy Mimix on a remote server so your whole team can use it.
+
+### Ports
+
+| Service | Port | Description |
+|---|---|---|
+| Backend API | 3000 | Rust server — handles all API requests |
+| UI + MCP | 8080 | Combined Node server — serves the React UI **and** the MCP SSE endpoint |
+
+### Deploy
+
+```bash
+# On the remote server
+git clone https://github.com/your-username/mimix.git
+cd mimix
+./setup.sh
+
+# Build frontend with the remote backend URL
+cd frontend-react
+VITE_API_BASE=http://<server-ip>:3000 npm run build
+cd ..
+
+# Start backend on port 3000
+nohup ./target/release/mimix > /tmp/mimix-backend.log 2>&1 &
+
+# Start combined UI + MCP server on port 8080
+KB_API_URL=http://<server-ip>:3000 UI_PORT=8080 \
+  nohup node mcp-server/ui-mcp-server.js > /tmp/mimix-ui.log 2>&1 &
+```
+
+### Connect Claude Code to the remote MCP
+
+Anyone who knows the server IP can discover the MCP endpoint and connect — no SSH needed:
+
+```bash
+# 1. Discover the connection command (self-documenting endpoint)
+curl http://<server-ip>:8080/mcp
+
+# 2. Copy-paste the returned command, e.g.:
+claude mcp add mimix --transport sse http://<server-ip>:8080/mcp/sse
+```
+
+The `/mcp` endpoint returns a JSON object with the exact `claude mcp add` command — no need to know ports or configuration details.
+
+### MCP transports explained
+
+| Mode | Transport | When to use |
+|---|---|---|
+| Local (`mimix-mcp`) | **stdio** | Claude Code on the same machine |
+| Remote (`ui-mcp-server.js`) | **SSE over HTTP** | Claude Code on a different machine |
+
+---
+
 ## Project Structure
 
 ```
