@@ -440,3 +440,31 @@ input, textarea { font-family: inherit; }
 .tableWrapper:hover .column-resize-handle { opacity: 0.4; }
 .tableWrapper .column-resize-handle:hover,
 .tableWrapper .column-resize-handle.active { opacity: 1; }
+
+/* Mermaid diagram renderer */
+.mermaid-diagram {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  margin: 4px 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mermaid diagrams rendered as inline SVG images — full width */
+.bn-block-content img[src^="data:image/svg+xml"] {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  padding: 12px;
+  display: block;
+}

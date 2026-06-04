@@ -1,0 +1,70 @@
+[2m2026-06-04T10:59:12.925175Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Starting KB server on port 3000
+[2m2026-06-04T10:59:12.925254Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Data directory: ./data
+[2m2026-06-04T10:59:12.928684Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Database connection established
+[2m2026-06-04T10:59:12.929492Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Migrations applied
+[2m2026-06-04T10:59:12.930737Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Tantivy index ready at ./data/tantivy
+[2m2026-06-04T10:59:20.163746Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Starting KB server on port 3000
+[2m2026-06-04T10:59:20.163791Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Data directory: ./data
+[2m2026-06-04T10:59:20.165532Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Database connection established
+[2m2026-06-04T10:59:20.166016Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Migrations applied
+[2m2026-06-04T10:59:20.167151Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Tantivy index ready at ./data/tantivy
+[2m2026-06-04T10:59:20.169430Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Listening on 0.0.0.0:3000
+[2m2026-06-04T10:59:27.833081Z[0m [32m INFO[0m [2mmimix::api::collections[0m[2m:[0m [3mevent[0m[2m=[0m"collection.created" [3mid[0m[2m=[0m4af7116e-23a0-4848-8c73-96d1cef17331 [3mname[0m[2m=[0mCM-10 Architecture
+[2m2026-06-04T11:00:10.226324Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Preparing commit
+[2m2026-06-04T11:00:10.267575Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Prepared commit 3
+[2m2026-06-04T11:00:10.267664Z[0m [32m INFO[0m [2mtantivy::indexer::prepared_commit[0m[2m:[0m committing 3
+[2m2026-06-04T11:00:10.267832Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m save metas
+[2m2026-06-04T11:00:10.269553Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m Running garbage collection
+[2m2026-06-04T11:00:10.269594Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Garbage collect
+[2m2026-06-04T11:00:10.271693Z[0m [32m INFO[0m [2mmimix::api::documents[0m[2m:[0m [3mevent[0m[2m=[0m"doc.created" [3mid[0m[2m=[0m9aac910e-f6af-42d6-a657-7ab3e8ba2607 [3mtitle[0m[2m=[0mARCH-CM-10 — Job execution: the sandbox runtime (collector-side)
+[2m2026-06-04T11:07:24.174974Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Preparing commit
+[2m2026-06-04T11:07:24.246780Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Prepared commit 6
+[2m2026-06-04T11:07:24.246843Z[0m [32m INFO[0m [2mtantivy::indexer::prepared_commit[0m[2m:[0m committing 6
+[2m2026-06-04T11:07:24.247437Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m save metas
+[2m2026-06-04T11:07:24.249389Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m Running garbage collection
+[2m2026-06-04T11:07:24.249461Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Garbage collect
+[2m2026-06-04T11:07:24.252308Z[0m [32m INFO[0m [2mmimix::api::documents[0m[2m:[0m [3mevent[0m[2m=[0m"doc.created" [3mid[0m[2m=[0m038911a8-8c65-40a8-8064-defae9dd0f10 [3mtitle[0m[2m=[0mMimix KB — Theme, Settings, Backup & Logging
+[2m2026-06-04T11:07:40.136825Z[0m [32m INFO[0m [2mmimix::api::projects[0m[2m:[0m [3mevent[0m[2m=[0m"project.created" [3mid[0m[2m=[0mb9daaa5b-1df8-49c3-bf6f-e187493fa02f [3mname[0m[2m=[0mMermaid
+[2m2026-06-04T11:07:51.690097Z[0m [32m INFO[0m [2mmimix::api::collections[0m[2m:[0m [3mevent[0m[2m=[0m"collection.created" [3mid[0m[2m=[0mc3862ff3-c21c-41ca-b18f-acab4cc81373 [3mname[0m[2m=[0mDiagrams
+[2m2026-06-04T11:09:13.115626Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Starting KB server on port 3000
+[2m2026-06-04T11:09:13.115666Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Data directory: ./data
+[2m2026-06-04T11:09:13.116684Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Database connection established
+[2m2026-06-04T11:09:13.117057Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Migrations applied
+[2m2026-06-04T11:09:13.118085Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Tantivy index ready at ./data/tantivy
+[2m2026-06-04T11:09:21.139963Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Starting KB server on port 3000
+[2m2026-06-04T11:09:21.140041Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Data directory: ./data
+[2m2026-06-04T11:09:21.142533Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Database connection established
+[2m2026-06-04T11:09:21.143119Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Migrations applied
+[2m2026-06-04T11:09:21.144352Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Tantivy index ready at ./data/tantivy
+[2m2026-06-04T11:09:21.145406Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Listening on 0.0.0.0:3000
+[2m2026-06-04T11:17:46.568449Z[0m [31mERROR[0m [2mtower_http::trace::on_failure[0m[2m:[0m response failed [3mclassification[0m[2m=[0mStatus code: 500 Internal Server Error [3mlatency[0m[2m=[0m1 ms
+[2m2026-06-04T11:18:17.428926Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Starting KB server on port 3000
+[2m2026-06-04T11:18:17.428965Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Data directory: ./data
+[2m2026-06-04T11:18:17.430684Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Database connection established
+[2m2026-06-04T11:18:17.431005Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Migrations applied
+[2m2026-06-04T11:18:17.432011Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Tantivy index ready at ./data/tantivy
+[2m2026-06-04T11:18:17.433023Z[0m [32m INFO[0m [2mmimix[0m[2m:[0m Listening on 0.0.0.0:3000
+[2m2026-06-04T11:18:27.002561Z[0m [31mERROR[0m [2mtower_http::trace::on_failure[0m[2m:[0m response failed [3mclassification[0m[2m=[0mStatus code: 500 Internal Server Error [3mlatency[0m[2m=[0m1 ms
+[2m2026-06-04T11:18:31.832227Z[0m [31mERROR[0m [2mtower_http::trace::on_failure[0m[2m:[0m response failed [3mclassification[0m[2m=[0mStatus code: 500 Internal Server Error [3mlatency[0m[2m=[0m1 ms
+[2m2026-06-04T11:19:10.113197Z[0m [32m INFO[0m [2mmimix::api::collections[0m[2m:[0m [3mevent[0m[2m=[0m"collection.created" [3mid[0m[2m=[0mb05ce7f0-d6e4-43ea-886b-884e45bacf7c [3mname[0m[2m=[0mArchitecture Docs
+[2m2026-06-04T11:19:27.687826Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Preparing commit
+[2m2026-06-04T11:19:27.714444Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Prepared commit 9
+[2m2026-06-04T11:19:27.714492Z[0m [32m INFO[0m [2mtantivy::indexer::prepared_commit[0m[2m:[0m committing 9
+[2m2026-06-04T11:19:27.715020Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m save metas
+[2m2026-06-04T11:19:27.716750Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m Running garbage collection
+[2m2026-06-04T11:19:27.716779Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Garbage collect
+[2m2026-06-04T11:19:27.718873Z[0m [32m INFO[0m [2mmimix::api::documents[0m[2m:[0m [3mevent[0m[2m=[0m"doc.created" [3mid[0m[2m=[0mf8c2eeda-33d8-41f4-be70-007a60cbdf99 [3mtitle[0m[2m=[0mARCH-CM-10 — Job execution: the sandbox runtime
+[2m2026-06-04T12:08:20.573584Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Preparing commit
+[2m2026-06-04T12:08:20.597952Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Prepared commit 12
+[2m2026-06-04T12:08:20.597979Z[0m [32m INFO[0m [2mtantivy::indexer::prepared_commit[0m[2m:[0m committing 12
+[2m2026-06-04T12:08:20.599777Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m save metas
+[2m2026-06-04T12:08:20.601585Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m Running garbage collection
+[2m2026-06-04T12:08:20.601615Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Garbage collect
+[2m2026-06-04T12:08:20.601815Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Deleted "f77f21ff99764dc383eadc9ab923b4bf.12.del"
+[2m2026-06-04T12:08:20.601863Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Deleted "f77f21ff99764dc383eadc9ab923b4bf.store"
+[2m2026-06-04T12:08:20.601907Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Deleted "f77f21ff99764dc383eadc9ab923b4bf.term"
+[2m2026-06-04T12:08:20.601952Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Deleted "f77f21ff99764dc383eadc9ab923b4bf.fieldnorm"
+[2m2026-06-04T12:08:20.601984Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Deleted "f77f21ff99764dc383eadc9ab923b4bf.fast"
+[2m2026-06-04T12:08:20.602012Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Deleted "f77f21ff99764dc383eadc9ab923b4bf.idx"
+[2m2026-06-04T12:08:20.602037Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Deleted "f77f21ff99764dc383eadc9ab923b4bf.pos"
+[2m2026-06-04T12:08:20.604222Z[0m [32m INFO[0m [2mmimix::api::documents[0m[2m:[0m [3mevent[0m[2m=[0m"doc.updated" [3mid[0m[2m=[0mf8c2eeda-33d8-41f4-be70-007a60cbdf99

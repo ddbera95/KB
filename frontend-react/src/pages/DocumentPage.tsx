@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import mermaid from 'mermaid';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   useCreateBlockNote,
@@ -199,6 +200,7 @@ function DocEditor({
     loadDictionary(runCheck);
   }, [spellCheckOn, runCheck]);
 
+
   // Expand codeBlock blocks whose language is "markdown" or "md" into
   // actual rendered BlockNote blocks (headings, lists, paragraphs).
   // This lets users use ```markdown fences as rich-text templates.
@@ -231,11 +233,65 @@ function DocEditor({
     return out;
   }, [editor]);
 
+  // Pre-render mermaid fences in markdown to inline SVG images
+  const renderMermaidInMarkdown = useCallback(async (md: string): Promise<string> => {
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: isDark ? {
+        background: '#13111c',
+        primaryColor: '#4f46e5',
+        primaryTextColor: '#e2e0ff',
+        primaryBorderColor: '#6366f1',
+        lineColor: '#818cf8',
+        secondaryColor: '#7c3aed',
+        tertiaryColor: '#1e1b4b',
+        mainBkg: '#1e1b4b',
+        nodeBorder: '#6366f1',
+        clusterBkg: '#1a1730',
+        clusterBorder: '#4f46e5',
+        titleColor: '#c7d2fe',
+        edgeLabelBackground: '#312e81',
+        fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+        fontSize: '15px',
+      } : {
+        primaryColor: '#6366f1',
+        primaryTextColor: '#1e1b4b',
+        primaryBorderColor: '#4338ca',
+        lineColor: '#4f46e5',
+        secondaryColor: '#a5b4fc',
+        tertiaryColor: '#eef2ff',
+        mainBkg: '#eef2ff',
+        nodeBorder: '#4338ca',
+        clusterBkg: '#e0e7ff',
+        clusterBorder: '#4338ca',
+        titleColor: '#1e1b4b',
+        edgeLabelBackground: '#e0e7ff',
+        fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+        fontSize: '15px',
+      },
+    });
+
+    const FENCE = /```mermaid\r?\n([\s\S]*?)```/g;
+    const jobs: Array<{ original: string; code: string }> = [];
+    let m;
+    while ((m = FENCE.exec(md)) !== null) jobs.push({ original: m[0], code: m[1].trim() });
+
+    for (const job of jobs) {
+      try {
+        const { svg } = await mermaid.render('mmd' + Math.random().toString(36).slice(2, 8), job.code);
+        const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        md = md.replace(job.original, `![Mermaid diagram](${url})`);
+      } catch { /* keep original code block on parse error */ }
+    }
+    return md;
+  }, []);
+
   // If initialContent is undefined the raw string is Markdown (e.g. written
   // by the MCP server). Convert it to BlockNote blocks after mount.
   useEffect(() => {
     if (initialContent !== undefined) {
-      // Still expand any markdown code blocks in stored JSON content
       expandMarkdownBlocks(editor.document as any).then(expanded => {
         if (JSON.stringify(expanded) !== JSON.stringify(editor.document)) {
           editor.replaceBlocks(editor.document, expanded);
@@ -245,18 +301,21 @@ function DocEditor({
     }
     if (!rawContent || rawContent.trim() === '') return;
 
-    const result = editor.tryParseMarkdownToBlocks(wikiLinksToMarkdown(rawContent));
-    const apply = async (blocks: any[]) => {
-      if (blocks.length > 0) {
-        const expanded = await expandMarkdownBlocks(blocks);
-        editor.replaceBlocks(editor.document, expanded);
+    (async () => {
+      const processed = await renderMermaidInMarkdown(rawContent);
+      const result = await editor.tryParseMarkdownToBlocks(wikiLinksToMarkdown(processed));
+      if (result && result.length > 0) {
+        const expanded = await expandMarkdownBlocks(result);
+        // Set mermaid SVG images to full editor width
+        const withLargeMermaid = expanded.map((block: any) => {
+          if (block.type === 'image' && (block.props?.url ?? '').startsWith('data:image/svg+xml')) {
+            return { ...block, props: { ...block.props, previewWidth: 740 } };
+          }
+          return block;
+        });
+        editor.replaceBlocks(editor.document, withLargeMermaid);
       }
-    };
-    if (result && typeof (result as any).then === 'function') {
-      (result as any).then(apply);
-    } else {
-      apply(result as any);
-    }
+    })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
