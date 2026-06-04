@@ -380,7 +380,7 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
           </div>
         )}
 
-        <div className="modal-foot" style={{ justifyContent: 'space-between' }}>
+        <div className="modal-foot space-between">
           {/* New folder button on the left */}
           <button
             className="btn"
