@@ -431,18 +431,22 @@ function serveFile(res, filePath) {
   fs.createReadStream(filePath).pipe(res);
 }
 
-// ── MCP Server ────────────────────────────────────────────────────────────────
-const server = new Server({ name: "mimix", version: "1.0.0" }, { capabilities: { tools: {} } });
-server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
-server.setRequestHandler(CallToolRequestSchema, async (req) => {
-  const { name, arguments: args } = req.params;
-  try {
-    const text = await callTool(name, args ?? {});
-    return { content: [{ type: "text", text: String(text) }] };
-  } catch (err) {
-    return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
-  }
-});
+// ── Per-connection server factory ─────────────────────────────────────────────
+// MCP Server must be a fresh instance per SSE connection (SDK limitation)
+function createMCPServer() {
+  const srv = new Server({ name: "mimix", version: "1.0.0" }, { capabilities: { tools: {} } });
+  srv.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
+  srv.setRequestHandler(CallToolRequestSchema, async (req) => {
+    const { name, arguments: args } = req.params;
+    try {
+      const text = await callTool(name, args ?? {});
+      return { content: [{ type: "text", text: String(text) }] };
+    } catch (err) {
+      return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
+    }
+  });
+  return srv;
+}
 
 const transports = {};
 
@@ -482,18 +486,19 @@ const httpServer = http.createServer(async (req, res) => {
   // ── /mcp/sse  — SSE connection ──────────────────────────────────────────────
   if (req.method === "GET" && url === "/mcp/sse") {
     const t = new SSEServerTransport("/mcp/message", res);
-    transports[t.sessionId] = t;
+    const srv = createMCPServer();
+    transports[t.sessionId] = { transport: t, server: srv };
     res.on("close", () => delete transports[t.sessionId]);
-    await server.connect(t);
+    await srv.connect(t);
     return;
   }
 
   // ── /mcp/message  — tool call messages ─────────────────────────────────────
   if (req.method === "POST" && url.startsWith("/mcp/message")) {
     const sid = new URL(url, "http://x").searchParams.get("sessionId");
-    const t = transports[sid];
-    if (!t) { res.writeHead(404); res.end("Session not found"); return; }
-    await t.handlePostMessage(req, res);
+    const session = transports[sid];
+    if (!session) { res.writeHead(404); res.end("Session not found"); return; }
+    await session.transport.handlePostMessage(req, res);
     return;
   }
 
