@@ -1,4 +1,5 @@
 mod api;
+mod auth;
 mod config;
 mod db;
 mod error;
@@ -6,6 +7,7 @@ mod models;
 mod search;
 mod state;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use axum::http::{HeaderValue, Method};
@@ -72,6 +74,28 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!("./migrations").run(&pool).await?;
     info!("Migrations applied");
 
+    // ── Ensure default admin user exists ──────────────────────────────────────
+    let admin_exists: Option<String> =
+        sqlx::query_scalar("SELECT id FROM users WHERE username = 'admin'")
+            .fetch_optional(&pool)
+            .await?;
+
+    if admin_exists.is_none() {
+        let admin_id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp();
+        let hash = tokio::task::spawn_blocking(|| bcrypt::hash("admin", 12))
+            .await??;
+        sqlx::query(
+            "INSERT INTO users (id, username, password_hash, is_admin, created_at) VALUES (?, 'admin', ?, 1, ?)",
+        )
+        .bind(&admin_id)
+        .bind(&hash)
+        .bind(now)
+        .execute(&pool)
+        .await?;
+        info!("Default admin user created");
+    }
+
     let search_index = SearchIndex::new(&config.tantivy_dir())?;
     info!("Tantivy index ready at {}", config.tantivy_dir().display());
 
@@ -102,6 +126,9 @@ async fn main() -> anyhow::Result<()> {
 
     scheduler.start().await?;
 
+    // ── Session store ─────────────────────────────────────────────────────────
+    let sessions: auth::SessionStore = Arc::new(Mutex::new(HashMap::new()));
+
     let state = AppState {
         db: pool,
         search: Arc::new(search_index),
@@ -109,6 +136,7 @@ async fn main() -> anyhow::Result<()> {
         attachments_dir: config.attachments_dir(),
         scheduler,
         backup_job_id,
+        sessions,
     };
 
     let cors = CorsLayer::new()
@@ -128,7 +156,7 @@ async fn main() -> anyhow::Result<()> {
         ])
         .allow_headers(Any);
 
-    let app = api::router()
+    let app = api::router(state.clone())
         .with_state(state)
         .layer(cors)
         .layer(TraceLayer::new_for_http())

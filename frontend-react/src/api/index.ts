@@ -11,6 +11,10 @@ async function req<T>(path: string, opts?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...opts?.headers },
     ...opts,
   });
+  if (res.status === 401 && path !== '/auth/login') {
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
   if (!res.ok) {
     const e = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(e.error ?? 'Request failed');
@@ -18,6 +22,30 @@ async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   if (res.status === 204) return undefined as T;
   return res.json();
 }
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export const login = (username: string, password: string) =>
+  req('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+export const logout = () =>
+  req('/auth/logout', { method: 'POST' });
+export const getMe = () =>
+  req('/auth/me');
+export const changePassword = (current_password: string, new_password: string) =>
+  req('/auth/password', { method: 'PUT', body: JSON.stringify({ current_password, new_password }) });
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+export const getUsers = () => req('/users');
+export const createUser = (username: string, password: string) =>
+  req('/users', { method: 'POST', body: JSON.stringify({ username, password }) });
+export const deleteUser = (id: string) =>
+  req(`/users/${id}`, { method: 'DELETE' });
+
+// ── API Keys ──────────────────────────────────────────────────────────────────
+export const getApiKeys = () => req('/api-keys');
+export const createApiKey = (name: string, project_id: string) =>
+  req('/api-keys', { method: 'POST', body: JSON.stringify({ name, project_id }) });
+export const deleteApiKey = (id: string) =>
+  req(`/api-keys/${id}`, { method: 'DELETE' });
 
 // ── Projects ─────────────────────────────────────────────────────────────────
 export const getProjects = () => req<Project[]>('/projects');

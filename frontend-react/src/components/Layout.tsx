@@ -5,6 +5,7 @@ import {
   FileText, Network, Layers, BookOpen,
   MoreHorizontal, Trash2, Edit2, FolderOpen,
   HardDrive, Loader2, FolderPlus, Settings, Sun, Moon,
+  LogOut, Key, Users, Copy, Check,
 } from 'lucide-react';
 import type { Collection, Document, Project } from '../types';
 import {
@@ -12,8 +13,12 @@ import {
   createDocument, createCollection,
   deleteProject, updateProject, createBackup, browseDir, mkdirBackup,
   getSettings, saveSettings, type AppSettings,
+  getUsers, createUser, deleteUser,
+  getApiKeys, createApiKey, deleteApiKey,
+  changePassword,
 } from '../api';
 import { useProject } from '../context';
+import { useAuth } from '../context';
 
 // ── Recursive doc tree node ───────────────────────────────────────────────────
 function DocNode({ doc, depth = 0 }: { doc: Document; depth?: number }) {
@@ -169,6 +174,7 @@ function ProjectSwitcher() {
   const { project, projects, setProject, refreshProjects } = useProject();
   const [open, setOpen] = useState(false);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [copied, setCopied] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -191,6 +197,16 @@ function ProjectSwitcher() {
     setDeletingProject(null);
   };
 
+  const copyProjectId = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!project) return;
+    try {
+      await navigator.clipboard.writeText(project.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+
   return (
     <>
       <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
@@ -210,6 +226,26 @@ function ProjectSwitcher() {
           <ChevronDown size={12} style={{ color: 'var(--muted)', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
         </button>
 
+        {/* Project ID display (always visible below trigger) */}
+        {project && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '4px 12px', background: 'var(--bg)',
+            borderBottom: '1px solid var(--border)',
+          }}>
+            <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={project.id}>
+              ID: {project.id}
+            </span>
+            <button
+              onClick={copyProjectId}
+              title="Copy project ID"
+              style={{ background: 'none', border: 'none', padding: '1px 3px', color: copied ? '#4ade80' : 'var(--muted)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}
+            >
+              {copied ? <Check size={10} /> : <Copy size={10} />}
+            </button>
+          </div>
+        )}
+
         {/* ── dropdown: all projects + options ── */}
         {open && (
           <div style={{
@@ -217,7 +253,6 @@ function ProjectSwitcher() {
             background: 'var(--bg2)', border: '1px solid var(--border)',
             borderBottom: 'none', boxShadow: '0 -8px 28px rgba(0,0,0,.5)',
             borderRadius: '8px 8px 0 0', paddingTop: 4,
-            // No overflow:hidden — lets the ⋯ submenu render outside the container
           }}>
             <div style={{ padding: '6px 14px 4px', fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               Projects
@@ -308,7 +343,7 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
     setCreating(true); setCreateErr('');
     try {
       const r = await mkdirBackup(current, newFolderName.trim());
-      await navigate(r.path); // navigate into the new folder
+      await navigate(r.path);
       setNewFolderName('');
     } catch (e: any) {
       setCreateErr(e.message ?? 'Failed to create folder');
@@ -327,12 +362,10 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
           <button className="btn icon-btn" onClick={onClose}>✕</button>
         </div>
 
-        {/* Current path bar */}
         <div style={{ padding: '8px 20px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text2)', wordBreak: 'break-all', fontFamily: 'monospace' }}>
           {current || '…'}
         </div>
 
-        {/* Directory list */}
         <div style={{ maxHeight: 300, overflowY: 'auto' }}>
           {loading && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--muted)' }}><Loader2 size={18} className="spin" /></div>}
           {err && <div style={{ padding: '12px 20px', color: 'var(--danger)', fontSize: 13 }}>{err}</div>}
@@ -370,7 +403,6 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
           )}
         </div>
 
-        {/* New folder input */}
         {newFolderMode && (
           <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg2)' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -394,7 +426,6 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
         )}
 
         <div className="modal-foot space-between">
-          {/* New folder button on the left */}
           <button
             className="btn"
             style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
@@ -420,10 +451,279 @@ function DirPicker({ onSelect, onClose }: { onSelect: (path: string) => void; on
   );
 }
 
+// ── Users Section (admin only) ────────────────────────────────────────────────
+interface UserRow { id: string; username: string; is_admin: boolean; created_at: number }
+
+function UsersSection() {
+  const { user: me } = useAuth();
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const list = await getUsers() as UserRow[];
+      setUsers(list);
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    if (!newUsername.trim() || !newPassword.trim()) return;
+    setCreating(true); setErr('');
+    try {
+      await createUser(newUsername.trim(), newPassword.trim());
+      setNewUsername(''); setNewPassword('');
+      await load();
+    } catch (e: any) {
+      setErr(e.message ?? 'Failed to create user');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try { await deleteUser(id); await load(); } catch (e: any) { setErr(e.message ?? 'Failed'); }
+  };
+
+  if (loading) return <div style={{ fontSize: 12, color: 'var(--muted)', padding: '4px 0' }}>Loading users…</div>;
+
+  return (
+    <div>
+      {/* User list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+        {users.map(u => (
+          <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', background: 'var(--bg)', borderRadius: 5, border: '1px solid var(--border)' }}>
+            <div style={{ flex: 1, fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {u.username}
+              {u.is_admin && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)', fontWeight: 600 }}>admin</span>}
+              {u.id === me?.user_id && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--muted)' }}>(you)</span>}
+            </div>
+            {u.id !== me?.user_id && (
+              <button
+                onClick={() => handleDelete(u.id)}
+                style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', padding: '1px 2px' }}
+                title="Delete user"
+              >
+                <Trash2 size={11} />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Create new user */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <input
+          className="modal-input"
+          style={{ marginTop: 0, fontSize: 12, padding: '5px 8px' }}
+          placeholder="Username"
+          value={newUsername}
+          onChange={e => setNewUsername(e.target.value)}
+        />
+        <input
+          className="modal-input"
+          type="password"
+          style={{ marginTop: 0, fontSize: 12, padding: '5px 8px' }}
+          placeholder="Password"
+          value={newPassword}
+          onChange={e => setNewPassword(e.target.value)}
+        />
+        <button
+          className="btn primary"
+          style={{ fontSize: 12, justifyContent: 'center' }}
+          onClick={handleCreate}
+          disabled={creating || !newUsername.trim() || !newPassword.trim()}
+        >
+          {creating ? <Loader2 size={12} className="spin" /> : <><Plus size={12} /> Add User</>}
+        </button>
+        {err && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{err}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── API Keys Section (admin only) ─────────────────────────────────────────────
+interface ApiKeyRow {
+  id: string; name: string; key_value: string;
+  project_id: string; created_by: string; created_at: number; last_used_at?: number;
+}
+
+function ApiKeysSection() {
+  const { projects } = useProject();
+  const [keys, setKeys] = useState<ApiKeyRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+  const [newProjectId, setNewProjectId] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const list = await getApiKeys() as ApiKeyRow[];
+      setKeys(list);
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    if (!newName.trim() || !newProjectId) return;
+    setCreating(true); setErr('');
+    try {
+      await createApiKey(newName.trim(), newProjectId);
+      setNewName('');
+      await load();
+    } catch (e: any) {
+      setErr(e.message ?? 'Failed to create key');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try { await deleteApiKey(id); await load(); } catch (e: any) { setErr(e.message ?? 'Failed'); }
+  };
+
+  const copyKey = async (key: ApiKeyRow) => {
+    try {
+      await navigator.clipboard.writeText(key.key_value);
+      setCopiedId(key.id);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {}
+  };
+
+  if (loading) return <div style={{ fontSize: 12, color: 'var(--muted)', padding: '4px 0' }}>Loading keys…</div>;
+
+  return (
+    <div>
+      {keys.length === 0 && (
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>No API keys yet.</div>
+      )}
+
+      {/* Key list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+        {keys.map(k => {
+          const proj = projects.find(p => p.id === k.project_id);
+          return (
+            <div key={k.id} style={{ padding: '6px 8px', background: 'var(--bg)', borderRadius: 5, border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ flex: 1, fontSize: 12, color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.name}</div>
+                <button onClick={() => copyKey(k)} style={{ background: 'none', border: 'none', color: copiedId === k.id ? '#4ade80' : 'var(--muted)', cursor: 'pointer', display: 'flex', padding: '1px 2px' }} title="Copy key">
+                  {copiedId === k.id ? <Check size={11} /> : <Copy size={11} />}
+                </button>
+                <button onClick={() => handleDelete(k.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', padding: '1px 2px' }} title="Delete key">
+                  <Trash2 size={11} />
+                </button>
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'monospace', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.key_value}</div>
+              <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 2 }}>
+                Project: {proj?.name ?? k.project_id}
+                {k.last_used_at && <span style={{ marginLeft: 8 }}>Last used: {new Date(k.last_used_at * 1000).toLocaleDateString()}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Create new key */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <input
+          className="modal-input"
+          style={{ marginTop: 0, fontSize: 12, padding: '5px 8px' }}
+          placeholder="Key name (e.g. MCP prod)"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+        />
+        <select
+          value={newProjectId}
+          onChange={e => setNewProjectId(e.target.value)}
+          style={{ padding: '5px 8px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: newProjectId ? 'var(--text)' : 'var(--muted)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+        >
+          <option value="">Select project…</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <button
+          className="btn primary"
+          style={{ fontSize: 12, justifyContent: 'center' }}
+          onClick={handleCreate}
+          disabled={creating || !newName.trim() || !newProjectId}
+        >
+          {creating ? <Loader2 size={12} className="spin" /> : <><Key size={12} /> Create Key</>}
+        </button>
+        {err && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{err}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── Change Password Section ───────────────────────────────────────────────────
+function ChangePasswordSection() {
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  const handleSave = async () => {
+    if (!currentPw || !newPw) return;
+    setSaving(true); setMsg(''); setErr('');
+    try {
+      await changePassword(currentPw, newPw);
+      setCurrentPw(''); setNewPw('');
+      setMsg('Password changed successfully.');
+    } catch (e: any) {
+      setErr(e.message ?? 'Failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <input
+        type="password"
+        className="modal-input"
+        style={{ marginTop: 0, fontSize: 12, padding: '5px 8px' }}
+        placeholder="Current password"
+        value={currentPw}
+        onChange={e => setCurrentPw(e.target.value)}
+      />
+      <input
+        type="password"
+        className="modal-input"
+        style={{ marginTop: 0, fontSize: 12, padding: '5px 8px' }}
+        placeholder="New password"
+        value={newPw}
+        onChange={e => setNewPw(e.target.value)}
+      />
+      <button
+        className="btn primary"
+        style={{ fontSize: 12, justifyContent: 'center' }}
+        onClick={handleSave}
+        disabled={saving || !currentPw || !newPw}
+      >
+        {saving ? <Loader2 size={12} className="spin" /> : 'Change Password'}
+      </button>
+      {msg && <div style={{ fontSize: 11, color: '#4ade80' }}>{msg}</div>}
+      {err && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{err}</div>}
+    </div>
+  );
+}
+
 // ── Settings panel (pinned to sidebar bottom) ─────────────────────────────────
 function SettingsPanel() {
   const { theme, toggle } = useTheme();
+  const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'general' | 'users' | 'apikeys' | 'password'>('general');
   const [settings, setSettings] = useState<AppSettings>({});
   const [showManualPicker, setShowManualPicker] = useState(false);
   const [showAutoPicker, setShowAutoPicker] = useState(false);
@@ -432,8 +732,8 @@ function SettingsPanel() {
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    if (open) getSettings().then(setSettings).catch(() => {});
-  }, [open]);
+    if (open && activeTab === 'general') getSettings().then(setSettings).catch(() => {});
+  }, [open, activeTab]);
 
   const save = async (updates: Partial<AppSettings>) => {
     const next = { ...settings, ...updates };
@@ -457,75 +757,153 @@ function SettingsPanel() {
     return { value: i, label: `${h}:00 ${ampm}` };
   });
 
+  const tabs = [
+    { id: 'general' as const, label: 'General' },
+    { id: 'password' as const, label: 'Password' },
+    ...(user?.is_admin ? [
+      { id: 'users' as const, label: 'Users' },
+      { id: 'apikeys' as const, label: 'API Keys' },
+    ] : []),
+  ];
+
   return (
     <>
       <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-        <button
-          onClick={() => { setOpen(p => !p); setResult(null); setErr(''); }}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', transition: 'background 0.1s, color 0.1s' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--text)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text2)'; }}
-        >
-          <Settings size={14} style={{ flexShrink: 0 }} />
-          Settings
-        </button>
+        {/* User info + logout row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderBottom: open ? '1px solid var(--border)' : 'none' }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.username}
+              {user?.is_admin && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)', fontWeight: 600 }}>admin</span>}
+            </div>
+          </div>
+          <button
+            onClick={() => { setOpen(p => !p); setResult(null); setErr(''); }}
+            title="Settings"
+            style={{ background: 'none', border: 'none', padding: '3px', color: 'var(--text2)', cursor: 'pointer', display: 'flex', borderRadius: 4 }}
+          >
+            <Settings size={14} />
+          </button>
+          <button
+            onClick={logout}
+            title="Sign out"
+            style={{ background: 'none', border: 'none', padding: '3px', color: 'var(--text2)', cursor: 'pointer', display: 'flex', borderRadius: 4 }}
+          >
+            <LogOut size={14} />
+          </button>
+        </div>
 
         {open && (
           <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Appearance */}
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Appearance</div>
-              <button
-                onClick={toggle}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer' }}
-              >
-                {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
-                {theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              </button>
-            </div>
-
-            {/* Manual Backup */}
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Manual Backup</div>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                <div onClick={() => setShowManualPicker(true)} style={{ flex: 1, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, color: settings.manual_backup_dir ? 'var(--text)' : 'var(--muted)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {settings.manual_backup_dir || 'Click to choose folder…'}
-                </div>
-                <button className="btn" style={{ fontSize: 12, padding: '4px 8px', flexShrink: 0 }} onClick={() => setShowManualPicker(true)}>Browse</button>
-              </div>
-              <button className="btn primary" style={{ width: '100%', justifyContent: 'center', fontSize: 12.5 }} onClick={runManualBackup} disabled={backing || !settings.manual_backup_dir?.trim()}>
-                {backing ? <><Loader2 size={13} className="spin" /> Backing up…</> : <><HardDrive size={13} /> Backup Now</>}
-              </button>
-              {result && <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 6 }}><div style={{ fontSize: 12, color: '#4ade80', fontWeight: 600 }}>✓ Done — {result.mb.toFixed(1)} MB</div><div style={{ fontSize: 11, color: 'var(--text2)', wordBreak: 'break-all' }}>{result.path}</div></div>}
-              {err && <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, fontSize: 12, color: 'var(--danger)' }}>{err}</div>}
-            </div>
-
-            {/* Auto Backup */}
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Auto Backup</div>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                <div onClick={() => setShowAutoPicker(true)} style={{ flex: 1, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, color: settings.auto_backup_dir ? 'var(--text)' : 'var(--muted)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {settings.auto_backup_dir || 'Click to choose folder…'}
-                </div>
-                <button className="btn" style={{ fontSize: 12, padding: '4px 8px', flexShrink: 0 }} onClick={() => setShowAutoPicker(true)}>Browse</button>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text2)', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={settings.auto_backup_hour != null} onChange={e => save({ auto_backup_hour: e.target.checked ? 2 : null })} />
-                  Enable at
-                </label>
-                <select
-                  value={settings.auto_backup_hour ?? 2}
-                  onChange={e => save({ auto_backup_hour: parseInt(e.target.value) })}
-                  disabled={settings.auto_backup_hour == null}
-                  style={{ flex: 1, padding: '4px 8px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', marginBottom: 4, paddingTop: 10 }}>
+              {tabs.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  style={{
+                    padding: '4px 10px', background: 'none', border: 'none',
+                    borderBottom: activeTab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
+                    color: activeTab === t.id ? 'var(--text)' : 'var(--text2)',
+                    fontSize: 12, fontWeight: activeTab === t.id ? 600 : 400,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    transition: 'color 0.1s',
+                  }}
                 >
-                  {hours.map(h => <option key={h.value} value={h.value}>{h.label}</option>)}
-                </select>
-              </div>
-              <div style={{ marginTop: 6, fontSize: 11, color: 'var(--muted)' }}>Keeps one rolling backup — replaces previous on each run.</div>
+                  {t.label}
+                </button>
+              ))}
             </div>
+
+            {/* General tab */}
+            {activeTab === 'general' && (
+              <>
+                {/* Appearance */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Appearance</div>
+                  <button
+                    onClick={toggle}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer' }}
+                  >
+                    {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+                    {theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                  </button>
+                </div>
+
+                {/* Manual Backup */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Manual Backup</div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    <div onClick={() => setShowManualPicker(true)} style={{ flex: 1, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, color: settings.manual_backup_dir ? 'var(--text)' : 'var(--muted)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {settings.manual_backup_dir || 'Click to choose folder…'}
+                    </div>
+                    <button className="btn" style={{ fontSize: 12, padding: '4px 8px', flexShrink: 0 }} onClick={() => setShowManualPicker(true)}>Browse</button>
+                  </div>
+                  <button className="btn primary" style={{ width: '100%', justifyContent: 'center', fontSize: 12.5 }} onClick={runManualBackup} disabled={backing || !settings.manual_backup_dir?.trim()}>
+                    {backing ? <><Loader2 size={13} className="spin" /> Backing up…</> : <><HardDrive size={13} /> Backup Now</>}
+                  </button>
+                  {result && <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 6 }}><div style={{ fontSize: 12, color: '#4ade80', fontWeight: 600 }}>Done — {result.mb.toFixed(1)} MB</div><div style={{ fontSize: 11, color: 'var(--text2)', wordBreak: 'break-all' }}>{result.path}</div></div>}
+                  {err && <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, fontSize: 12, color: 'var(--danger)' }}>{err}</div>}
+                </div>
+
+                {/* Auto Backup */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Auto Backup</div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    <div onClick={() => setShowAutoPicker(true)} style={{ flex: 1, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, color: settings.auto_backup_dir ? 'var(--text)' : 'var(--muted)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {settings.auto_backup_dir || 'Click to choose folder…'}
+                    </div>
+                    <button className="btn" style={{ fontSize: 12, padding: '4px 8px', flexShrink: 0 }} onClick={() => setShowAutoPicker(true)}>Browse</button>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text2)', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={settings.auto_backup_hour != null} onChange={e => save({ auto_backup_hour: e.target.checked ? 2 : null })} />
+                      Enable at
+                    </label>
+                    <select
+                      value={settings.auto_backup_hour ?? 2}
+                      onChange={e => save({ auto_backup_hour: parseInt(e.target.value) })}
+                      disabled={settings.auto_backup_hour == null}
+                      style={{ flex: 1, padding: '4px 8px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+                    >
+                      {hours.map(h => <option key={h.value} value={h.value}>{h.label}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: 'var(--muted)' }}>Keeps one rolling backup — replaces previous on each run.</div>
+                </div>
+              </>
+            )}
+
+            {/* Password tab */}
+            {activeTab === 'password' && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Change Password</div>
+                <ChangePasswordSection />
+              </div>
+            )}
+
+            {/* Users tab (admin only) */}
+            {activeTab === 'users' && user?.is_admin && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Users size={12} style={{ color: 'var(--muted)' }} />
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Users</div>
+                </div>
+                <UsersSection />
+              </div>
+            )}
+
+            {/* API Keys tab (admin only) */}
+            {activeTab === 'apikeys' && user?.is_admin && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Key size={12} style={{ color: 'var(--muted)' }} />
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>API Keys</div>
+                </div>
+                <ApiKeysSection />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -763,8 +1141,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Main ── */}
       <main className="main">{children}</main>
-
-      {/* delete confirm is handled inside ProjectSwitcher */}
 
       <style>{`
         .doc-child-item:hover .doc-add-btn { opacity: 1 !important; }

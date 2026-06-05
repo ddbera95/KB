@@ -30,3 +30,4 @@ bytes = "1"
 mime_guess = "2"
 dotenvy = "0.15"
 tokio-cron-scheduler = { version = "0.10", features = ["signal"] }
+bcrypt = "0.15"
