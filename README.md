@@ -197,31 +197,63 @@ claude mcp add mimix \
   -- mimix-mcp
 ```
 
-### Remote (SSE over HTTP)
+### Remote (Streamable HTTP)
 
-For Claude Code on a **different machine**, or to share with a team:
+For Claude Code on a **different machine**, or to share with a team. The remote server uses [MCP Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) — a single `/mcp` endpoint, no SSE required.
 
-```bash
-claude mcp add mimix --transport sse \
-  "http://<server-ip>:8080/mcp/sse?api_key=mmx_<your-api-key>&project_id=<your-project-id>"
+**Option A — credentials in headers (recommended, secrets stay out of logs):**
+
+Add to your Claude Code config (`~/.claude/mcp.json` or project-level `.claude/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "mimix": {
+      "type": "http",
+      "url": "http://<server-ip>:8080/mcp",
+      "headers": {
+        "X-Api-Key": "mmx_<your-api-key>",
+        "X-Project-Id": "<your-project-id>"
+      }
+    }
+  }
+}
 ```
 
-Or discover the endpoint automatically:
+Or via the CLI:
 
 ```bash
-# The /mcp endpoint returns the exact claude mcp add command
-curl http://<server-ip>:8080/mcp
+claude mcp add mimix --transport http \
+  --header "X-Api-Key: mmx_<your-api-key>" \
+  --header "X-Project-Id: <your-project-id>" \
+  "http://<server-ip>:8080/mcp"
 ```
 
-### Required environment variables
+**Option B — credentials in URL query params:**
+
+```bash
+claude mcp add mimix --transport http \
+  "http://<server-ip>:8080/mcp?api_key=mmx_<your-api-key>&project_id=<your-project-id>"
+```
+
+Both options are equivalent; the server accepts credentials from either headers or query params (headers take priority if both are present).
+
+> **Tip:** Run `curl http://<server-ip>:8080/mcp/info` to verify the server is reachable and see connection instructions.
+
+### Required credentials (remote / HTTP transport)
+
+| Credential | Where to pass | Description |
+|---|---|---|
+| `X-Api-Key` header **or** `api_key` query param | Per connection | API key from Settings → API Keys (starts with `mmx_`) |
+| `X-Project-Id` header **or** `project_id` query param | Per connection | Project ID (copy from sidebar or Settings → API Keys) |
+
+### Required environment variables (local / stdio transport)
 
 | Variable | Required | Description |
 |---|---|---|
 | `KB_API_URL` | No | Mimix backend URL (default: `http://localhost:3000`) |
-| `KB_PROJECT_ID` | **Yes** | Project ID to operate in (copy from sidebar or Settings) |
+| `KB_PROJECT_ID` | **Yes** | Project ID to operate in |
 | `KB_API_KEY` | **Yes** | API key created in Settings → API Keys (starts with `mmx_`) |
-
-> **Note:** Without `KB_API_KEY` the MCP server will log an error and all tool calls will be rejected with `401 Unauthorized`.
 
 ---
 
@@ -234,7 +266,7 @@ Deploy Mimix on a remote server so your whole team can use it.
 | Service | Port | Description |
 |---|---|---|
 | Backend API | 3000 | Rust server — handles all API requests |
-| UI + MCP | 8080 | Combined Node server — serves the React UI **and** the MCP SSE endpoint |
+| UI + MCP | 8080 | Combined Node server — serves the React UI **and** the MCP Streamable HTTP endpoint (`/mcp`) |
 
 ### Deploy
 
@@ -297,7 +329,7 @@ mimix/
 │
 ├── mcp-server/
 │   ├── index.js            # MCP stdio server (local use)
-│   └── ui-mcp-server.js    # Combined UI + MCP SSE server (remote use)
+│   └── ui-mcp-server.js    # Combined UI + MCP server — Streamable HTTP (remote use)
 │
 ├── assets/                 # Brand assets (logo, favicon)
 ├── setup.sh                # One-command install
@@ -309,21 +341,29 @@ mimix/
 
 ## MCP Tools
 
+Both the local (stdio) and remote (HTTP) servers expose these tools:
+
 | Tool | Description |
 |---|---|
+| `kb_current_project` | Show the active project |
+| `kb_list_projects` | List all projects |
 | `kb_search` | Full-text search across pages in the active project |
 | `kb_read_page` | Read full page content, tags, breadcrumb, and children |
+| `kb_list_pages` | List pages with optional filters |
 | `kb_create_page` | Create a page with Markdown content |
 | `kb_update_page` | Update title, content, tags |
 | `kb_append_to_page` | Append content without overwriting |
-| `kb_list_pages` | List pages with optional filters |
+| `kb_delete_page` | Permanently delete a page and its children |
 | `kb_list_collections` | List all collections in the active project |
 | `kb_create_collection` | Create a new collection |
 | `kb_delete_collection` | Delete a collection (pages are preserved) |
 | `kb_get_children` | Get sub-pages of a page |
 | `kb_get_backlinks` | Get pages that link to a given page |
-| `kb_list_projects` | List all projects |
-| `kb_current_project` | Show the active project (set via `KB_PROJECT_ID`) |
+
+The following graph tools are available in the **local (stdio) server only**:
+
+| Tool | Description |
+|---|---|
 | `kb_get_subgraph` | Get graph nodes/edges around a page |
 | `kb_find_path` | Find the shortest path between two pages |
 | `kb_get_neighbors` | Get neighbors of a page up to N hops |

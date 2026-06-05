@@ -352,12 +352,11 @@ async function callTool(name, args, apiKey, projectId) {
 }
 
 // ── Combined UI + MCP server on a single port ─────────────────────────────────
-// UI served from ../frontend/build, MCP on /mcp/sse
-// Anyone who knows the IP can connect — no separate port needed.
+// UI served from ../frontend-react/dist, MCP on /mcp (Streamable HTTP)
 //
-//   UI:   http://<ip>:8080/
-//   MCP:  http://<ip>:8080/mcp/sse
-//   Info: http://<ip>:8080/mcp   (returns claude mcp add command)
+//   UI:     http://<ip>:8080/
+//   MCP:    http://<ip>:8080/mcp
+//   Info:   http://<ip>:8080/mcp/info
 
 import http from "http";
 import fs from "fs";
@@ -406,7 +405,7 @@ const sessions = {};
 // ── HTTP server ───────────────────────────────────────────────────────────────
 const httpServer = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, X-Api-Key, X-Project-Id");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   if (req.method === "OPTIONS") { res.writeHead(200); res.end(); return; }
 
@@ -421,8 +420,15 @@ const httpServer = http.createServer(async (req, res) => {
     res.end(JSON.stringify({
       name: "Mimix MCP",
       transport: "streamable-http",
-      endpoint: `http://${host}/mcp?api_key=mmx_...&project_id=...`,
-      how_to_add_in_claude_code: `claude mcp add mimix --transport http "http://${host}/mcp?api_key=mmx_YOUR_KEY&project_id=YOUR_PROJECT_ID"`,
+      endpoint: `http://${host}/mcp`,
+      credentials: {
+        option_a_headers: { "X-Api-Key": "mmx_YOUR_KEY", "X-Project-Id": "YOUR_PROJECT_ID" },
+        option_b_query_params: `http://${host}/mcp?api_key=mmx_YOUR_KEY&project_id=YOUR_PROJECT_ID`,
+      },
+      how_to_add_in_claude_code: {
+        via_headers: `claude mcp add mimix --transport http --header "X-Api-Key: mmx_YOUR_KEY" --header "X-Project-Id: YOUR_PROJECT_ID" "http://${host}/mcp"`,
+        via_query_params: `claude mcp add mimix --transport http "http://${host}/mcp?api_key=mmx_YOUR_KEY&project_id=YOUR_PROJECT_ID"`,
+      },
       api: API,
     }, null, 2));
     return;
@@ -451,18 +457,18 @@ const httpServer = http.createServer(async (req, res) => {
       return;
     }
 
-    // New session — credentials must be in query params
-    const apiKey = parsed.searchParams.get("api_key") ?? "";
-    const projectId = parsed.searchParams.get("project_id") ?? "";
+    // New session — credentials from headers (preferred) or query params (fallback)
+    const apiKey = req.headers["x-api-key"] || parsed.searchParams.get("api_key") || "";
+    const projectId = req.headers["x-project-id"] || parsed.searchParams.get("project_id") || "";
 
     if (!apiKey) {
       res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Missing api_key. Connect with /mcp?api_key=mmx_...&project_id=..." }));
+      res.end(JSON.stringify({ error: "Missing api_key. Pass via X-Api-Key header or ?api_key= query param." }));
       return;
     }
     if (!projectId) {
       res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Missing project_id. Connect with /mcp?api_key=mmx_...&project_id=..." }));
+      res.end(JSON.stringify({ error: "Missing project_id. Pass via X-Project-Id header or ?project_id= query param." }));
       return;
     }
 
