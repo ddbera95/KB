@@ -323,10 +323,7 @@ mimix/
 | `kb_get_children` | Get sub-pages of a page |
 | `kb_get_backlinks` | Get pages that link to a given page |
 | `kb_list_projects` | List all projects |
-| `kb_current_project` | Show the active project |
-| `kb_switch_project` | Switch active project for the session |
-| `kb_create_project` | Create a new project and switch to it |
-| `kb_delete_project` | Delete a project and all its data |
+| `kb_current_project` | Show the active project (set via `KB_PROJECT_ID`) |
 | `kb_get_subgraph` | Get graph nodes/edges around a page |
 | `kb_find_path` | Find the shortest path between two pages |
 | `kb_get_neighbors` | Get neighbors of a page up to N hops |
