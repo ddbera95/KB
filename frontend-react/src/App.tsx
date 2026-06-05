@@ -10,6 +10,7 @@ import SearchPage from './pages/SearchPage';
 import GraphPage from './pages/GraphPage';
 import ProjectsPage from './pages/ProjectsPage';
 import LoginPage from './pages/LoginPage';
+import SettingsPage from './pages/SettingsPage';
 
 function AppInner() {
   const { user, loading, login } = useAuth();
@@ -46,6 +47,7 @@ function AppInner() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/graph" element={<GraphPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </Layout>
     </ProjectProvider>

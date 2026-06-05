@@ -11,10 +11,6 @@ async function req<T>(path: string, opts?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...opts?.headers },
     ...opts,
   });
-  if (res.status === 401 && path !== '/auth/login') {
-    window.location.href = '/login';
-    throw new Error('Unauthorized');
-  }
   if (!res.ok) {
     const e = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(e.error ?? 'Request failed');
@@ -57,9 +53,9 @@ export const updateProject = (id: string, data: { name?: string; description?: s
 export const deleteProject = (id: string) => req<void>(`/projects/${id}`, { method: 'DELETE' });
 
 // ── Collections ─────────────────────────────────────────────────────────────
-export const getCollections = (projectId = 'default') =>
+export const getCollections = (projectId: string) =>
   req<Collection[]>(`/collections?project_id=${projectId}`);
-export const createCollection = (data: { name: string; description?: string }, projectId = 'default') =>
+export const createCollection = (data: { name: string; description?: string }, projectId: string) =>
   req<Collection>(`/collections?project_id=${projectId}`, { method: 'POST', body: JSON.stringify(data) });
 export const getCollection = (id: string) =>
   req<{ collection: Collection; root_docs: Document[] }>(`/collections/${id}`);
@@ -134,7 +130,7 @@ export const saveSettings = (s: AppSettings) =>
   req<AppSettings>('/settings', { method: 'PUT', body: JSON.stringify(s) });
 
 // ── Graph ────────────────────────────────────────────────────────────────────
-export const getGraph = (projectId = 'default') =>
+export const getGraph = (projectId: string) =>
   req<{
     nodes: { id: string; title: string; node_type: string; depth: number; collection_id?: string; parent_id?: string }[];
     edges: { source: string; target: string; relation_type: string }[];

@@ -36,7 +36,7 @@ It is designed for:
 - **Tables**, task lists, toggles, images, file attachments
 
 ### Organisation
-- **Projects** — isolated workspaces; delete a project removes all its data instantly
+- **Projects** — isolated workspaces; each project has its own collections, pages, and API keys
 - **Collections** — group pages into named namespaces per project
 - **Hierarchical pages** — unlimited nesting with breadcrumbs and parent/child navigation
 - **Tags** — tag pages and filter by tag across the knowledge base
@@ -47,15 +47,22 @@ It is designed for:
 - **Knowledge graph** — interactive Cytoscape.js visualisation of pages, collections, and wiki-link connections
 - **Backlinks** — see every page that links to the current page
 
+### Authentication & Access Control
+- **Login page** — username/password authentication; default credentials are `admin` / `admin` (change on first login)
+- **Session auth** — browser sessions use a secure HttpOnly cookie; 24-hour expiry
+- **API keys** — project-scoped keys (`mmx_...`) for MCP clients and direct API access
+- **Admin controls** — only admins can create users and manage API keys (Settings → Users / API Keys)
+
 ### AI Integration
 - **MCP server** — exposes Mimix as tools to [Claude Code](https://claude.ai/code) and any MCP-compatible AI client
-- **Project-scoped** — switch projects at runtime; AI agents operate within the correct context
+- **Project-scoped** — each API key is tied to a specific project; the MCP client operates within that project
+- **Secure** — all MCP/API access requires a valid `KB_API_KEY`; unauthenticated requests are rejected
 - Built-in tools: `search`, `read_page`, `create_page`, `update_page`, `list_collections`, `create_collection`, and more
 
 ### Data & Privacy
 - **100% local** — all data stored as SQLite + files on your machine
 - **No cloud required** — works fully offline
-- **Backup** — one-click backup copies the entire data folder to any location
+- **Backup** — one-click backup in Settings copies the entire data folder to any location
 - **Open formats** — SQLite database is directly queryable; attachments are plain files
 
 ---
@@ -112,26 +119,109 @@ This will:
 | Backend API | http://localhost:3000 |
 | Frontend UI | http://localhost:5173 (dev) |
 
-Or use Make:
+### 4. First login
 
-```bash
-make setup   # first-time install
-make start   # start both servers
-make build   # production build
+Open the UI and log in with the default credentials:
+
+| Field | Value |
+|---|---|
+| Username | `admin` |
+| Password | `admin` |
+
+**Change your password immediately** — go to **Settings → Password**.
+
+### 5. Create a project
+
+After logging in you will be prompted to create a project. Projects are isolated workspaces — all pages, collections, and API keys belong to a specific project.
+
+---
+
+## Authentication
+
+### UI (browser)
+
+The UI uses session-based auth. Log in at `/login` with your username and password. Your session is stored in a secure HttpOnly cookie that expires after 24 hours.
+
+### API & MCP (API keys)
+
+All direct API calls and MCP tool calls require a **project-scoped API key**.
+
+**Creating an API key:**
+
+1. Open **Settings → API Keys**
+2. Find your project in the list and expand it
+3. Click **Add API Key**, enter a name (e.g. `MCP prod`), and click **Create**
+4. Copy the generated key — it starts with `mmx_`
+
+**Finding your Project ID:**
+
+The Project ID is shown:
+- In the sidebar below the project name (click the copy icon)
+- In **Settings → API Keys** next to each project name (click the copy icon)
+
+**Using the key:**
+
+```
+# Header
+X-Api-Key: mmx_your_key_here
+
+# Or Bearer token
+Authorization: Bearer mmx_your_key_here
 ```
 
-### Access from other devices on your network (LAN)
+All API requests scoped to a project must include `?project_id=<your-project-id>` in the query string. The API key validates that the requested project matches the key's assigned project.
 
-Build the frontend once, then the Rust backend serves everything on a single port:
+---
+
+## MCP Setup
+
+### Local (stdio)
+
+For Claude Code running on the **same machine** as Mimix:
 
 ```bash
-cd frontend-react && npm run build
+claude mcp add mimix \
+  -e KB_API_URL=http://localhost:3000 \
+  -e KB_PROJECT_ID=<your-project-id> \
+  -e KB_API_KEY=mmx_<your-api-key> \
+  -- node /path/to/mimix/mcp-server/index.js
 ```
 
-Then open **`http://<your-machine-ip>:3000/`** on any device on the same network.
+Or if you installed globally via `./setup.sh`:
 
-> The Vite dev server (port 5173) uses WebSocket for hot-reload which breaks over LAN.
-> The production build served by the Rust backend on port 3000 has no such limitation.
+```bash
+claude mcp add mimix \
+  -e KB_API_URL=http://localhost:3000 \
+  -e KB_PROJECT_ID=<your-project-id> \
+  -e KB_API_KEY=mmx_<your-api-key> \
+  -- mimix-mcp
+```
+
+### Remote (SSE over HTTP)
+
+For Claude Code on a **different machine**, or to share with a team:
+
+```bash
+claude mcp add mimix --transport sse \
+  "http://<server-ip>:8080/mcp/sse?api_key=mmx_<your-api-key>&project_id=<your-project-id>"
+```
+
+Or discover the endpoint automatically:
+
+```bash
+# The /mcp endpoint returns the exact claude mcp add command
+curl http://<server-ip>:8080/mcp
+```
+
+### Required environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `KB_API_URL` | No | Mimix backend URL (default: `http://localhost:3000`) |
+| `KB_PROJECT_ID` | **Yes** | Project ID to operate in (copy from sidebar or Settings) |
+| `KB_API_KEY` | **Yes** | API key created in Settings → API Keys (starts with `mmx_`) |
+
+> **Note:** Without `KB_API_KEY` the MCP server will log an error and all tool calls will be rejected with `401 Unauthorized`.
 
 ---
 
@@ -154,39 +244,18 @@ git clone https://github.com/your-username/mimix.git
 cd mimix
 ./setup.sh
 
-# Build frontend with the remote backend URL
-cd frontend-react
-VITE_API_BASE=http://<server-ip>:3000 npm run build
-cd ..
+# Build frontend
+cd frontend-react && npm run build && cd ..
 
-# Start backend on port 3000
-nohup ./target/release/mimix > /tmp/mimix-backend.log 2>&1 &
+# Start backend
+nohup ./target/release/mimix > logs/backend.log 2>&1 &
 
-# Start combined UI + MCP server on port 8080
-KB_API_URL=http://<server-ip>:3000 UI_PORT=8080 \
-  nohup node mcp-server/ui-mcp-server.js > /tmp/mimix-ui.log 2>&1 &
+# Start combined UI + MCP server
+KB_API_URL=http://localhost:3000 UI_PORT=8080 \
+  nohup node mcp-server/ui-mcp-server.js > logs/ui.log 2>&1 &
 ```
 
-### Connect Claude Code to the remote MCP
-
-Anyone who knows the server IP can discover the MCP endpoint and connect — no SSH needed:
-
-```bash
-# 1. Discover the connection command (self-documenting endpoint)
-curl http://<server-ip>:8080/mcp
-
-# 2. Copy-paste the returned command, e.g.:
-claude mcp add mimix --transport sse http://<server-ip>:8080/mcp/sse
-```
-
-The `/mcp` endpoint returns a JSON object with the exact `claude mcp add` command — no need to know ports or configuration details.
-
-### MCP transports explained
-
-| Mode | Transport | When to use |
-|---|---|---|
-| Local (`mimix-mcp`) | **stdio** | Claude Code on the same machine |
-| Remote (`ui-mcp-server.js`) | **SSE over HTTP** | Claude Code on a different machine |
+Open `http://<server-ip>:8080/` in your browser, log in as `admin` / `admin`, and change your password.
 
 ---
 
@@ -196,31 +265,39 @@ The `/mcp` endpoint returns a JSON object with the exact `claude mcp add` comman
 mimix/
 ├── src/                    # Rust backend
 │   ├── api/                # Axum route handlers
+│   │   ├── auth.rs         # Login, logout, /me, change password
 │   │   ├── projects.rs     # Project CRUD + delete cascade
 │   │   ├── collections.rs  # Collection management
 │   │   ├── documents.rs    # Pages with versioning + wiki links
 │   │   ├── search.rs       # Tantivy full-text search
-│   │   ├── graph.rs        # Knowledge graph API
+│   │   ├── graph.rs        # Knowledge graph API + path/neighbors
 │   │   ├── attachments.rs  # File upload/serve
-│   │   └── backup.rs       # Data backup endpoint
+│   │   ├── backup.rs       # Data backup endpoint
+│   │   ├── users.rs        # User management (admin only)
+│   │   └── apikeys.rs      # API key management (admin only)
+│   ├── auth.rs             # Session store, API key middleware, AuthUser
 │   ├── models/             # SQLx data types
 │   ├── search/             # Tantivy index wrapper
 │   ├── state.rs            # Shared application state
-│   └── main.rs
+│   └── main.rs             # Startup, migrations, admin seed
 │
 ├── migrations/
-│   ├── 0001_initial.sql    # Base schema
-│   └── 0002_add_projects.sql
+│   ├── 0001_initial.sql
+│   ├── 0002_add_projects.sql
+│   ├── 0003_collections_slug_per_project.sql
+│   ├── 0004_pages_section.sql
+│   └── 0005_auth.sql       # users + api_keys tables
 │
 ├── frontend-react/         # React + TypeScript frontend
 │   └── src/
 │       ├── api/            # REST API client
 │       ├── components/     # Layout, Sidebar, project switcher
-│       ├── context/        # Project context (localStorage persistence)
-│       └── pages/          # Document, Collection, Search, Graph, Home
+│       ├── context/        # Auth + Project context
+│       └── pages/          # Document, Collection, Search, Graph, Home, Settings, Login
 │
 ├── mcp-server/
-│   └── index.js            # MCP stdio server for Claude Code
+│   ├── index.js            # MCP stdio server (local use)
+│   └── ui-mcp-server.js    # Combined UI + MCP SSE server (remote use)
 │
 ├── assets/                 # Brand assets (logo, favicon)
 ├── setup.sh                # One-command install
@@ -231,8 +308,6 @@ mimix/
 ---
 
 ## MCP Tools
-
-After running `./setup.sh`, the following tools are available in Claude Code (backend must be running):
 
 | Tool | Description |
 |---|---|
@@ -252,6 +327,9 @@ After running `./setup.sh`, the following tools are available in Claude Code (ba
 | `kb_switch_project` | Switch active project for the session |
 | `kb_create_project` | Create a new project and switch to it |
 | `kb_delete_project` | Delete a project and all its data |
+| `kb_get_subgraph` | Get graph nodes/edges around a page |
+| `kb_find_path` | Find the shortest path between two pages |
+| `kb_get_neighbors` | Get neighbors of a page up to N hops |
 
 ---
 
@@ -266,22 +344,43 @@ PORT=3000
 RUST_LOG=info
 ```
 
-> **Tip:** Set `DATA_DIR` to an absolute path if you run the server from different directories. Using a relative path creates separate databases per working directory.
+> **Tip:** Set `DATA_DIR` to an absolute path if you run the server from different directories.
 
 ---
 
 ## REST API
 
+All endpoints (except `POST /api/auth/login` and `POST /api/auth/logout`) require authentication:
+
+- **Browser sessions:** send the `mimix_session` cookie automatically
+- **API / MCP clients:** send `X-Api-Key: mmx_<key>` header (or `Authorization: Bearer mmx_<key>`)
+
 <details>
 <summary>Show full API reference</summary>
 
 ```
+# Auth
+POST   /api/auth/login              { username, password } → sets session cookie
+POST   /api/auth/logout             → clears session cookie
+GET    /api/auth/me                 → current user info
+PUT    /api/auth/password           { current_password, new_password }
+
+# Users (admin only)
+GET    /api/users
+POST   /api/users                   { username, password }
+DELETE /api/users/:id
+
+# API Keys (admin only)
+GET    /api/api-keys
+POST   /api/api-keys                { name, project_id }
+DELETE /api/api-keys/:id
+
 # Projects
 GET    /api/projects
 POST   /api/projects
 GET    /api/projects/:id
 PUT    /api/projects/:id
-DELETE /api/projects/:id          ← deletes all data + files
+DELETE /api/projects/:id            ← deletes all data + files
 
 # Collections
 GET    /api/collections?project_id=
@@ -296,7 +395,6 @@ POST   /api/documents
 GET    /api/documents/:id
 PUT    /api/documents/:id
 DELETE /api/documents/:id
-POST   /api/documents/:id/append
 GET    /api/documents/:id/versions
 GET    /api/documents/:id/backlinks
 GET    /api/documents/:id/children
@@ -307,14 +405,20 @@ GET    /api/search?q=&project_id=
 
 # Graph
 GET    /api/graph?project_id=
+GET    /api/graph/path?project_id=&from=&to=
+GET    /api/graph/neighbors?project_id=&node_id=&hops=
 
 # Attachments
 POST   /api/attachments
 GET    /api/attachments/:id
 
 # Backup
-POST   /api/backup              { destination: "/path/to/backup/dir" }
-GET    /api/backup/browse?path= ← filesystem browser for UI
+POST   /api/backup                  { destination: "/path/to/dir" }
+GET    /api/backup/browse?path=
+
+# Settings
+GET    /api/settings
+PUT    /api/settings
 ```
 
 </details>
@@ -326,11 +430,11 @@ GET    /api/backup/browse?path= ← filesystem browser for UI
 ```
 data/
 ├── sqlite/
-│   └── knowledge.db        # All metadata — projects, pages, tags, relations
+│   └── knowledge.db        # All metadata — projects, pages, tags, relations, users, API keys
 ├── tantivy/                # Full-text search index (auto-rebuilt on schema change)
 └── projects/
     └── {project-id}/
-        └── attachments/    # Files per project — delete folder = all files gone
+        └── attachments/    # Files per project
 ```
 
 The SQLite database is the source of truth. The Tantivy index is a pure cache and can be safely deleted — it rebuilds on the next write operation.

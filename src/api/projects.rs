@@ -226,14 +226,7 @@ async fn delete_project(
     .await?
     .ok_or_else(|| AppError::NotFound(format!("project '{}' not found", id)))?;
 
-    // 2. Protect the default project.
-    if project.slug == "default" || project.name.to_lowercase() == "default" {
-        return Err(AppError::BadRequest(
-            "the default project cannot be deleted".into(),
-        ));
-    }
-
-    // 3. Collect ALL document IDs for this project (both collection docs
+    // 2. Collect ALL document IDs for this project (both collection docs
     //    and standalone docs) so we can clean the search index afterwards.
     let doc_ids = sqlx::query_scalar::<_, String>(
         "SELECT id FROM documents WHERE project_id = ?",

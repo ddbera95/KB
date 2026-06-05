@@ -12,9 +12,10 @@ export default function HomePage() {
   const [collections, setCollections] = useState<Collection[]>([]);
 
   useEffect(() => {
+    if (!project) return;
     Promise.all([
-      listDocuments({ project_id: project?.id ?? 'default', per_page: '8' }),
-      getCollections(project?.id),
+      listDocuments({ project_id: project.id, per_page: '8' }),
+      getCollections(project.id),
     ]).then(([docs, cols]) => {
       setRecent(docs.data);
       setCollections(cols);
@@ -22,8 +23,9 @@ export default function HomePage() {
   }, [project?.id]);
 
   const newPage = async () => {
+    if (!project) return;
     try {
-      const doc = await createDocument({ title: 'Untitled', content: '[]', project_id: project?.id ?? 'default' });
+      const doc = await createDocument({ title: 'Untitled', content: '[]', project_id: project.id });
       nav(`/doc/${doc.id}`);
     } catch {}
   };

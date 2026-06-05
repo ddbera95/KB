@@ -140,7 +140,7 @@ export default function GraphPage() {
       setLoading(true);
       setErr('');
       try {
-        const g = await getGraph(project?.id ?? 'default');
+        const g = await getGraph(project?.id ?? '');
         graphNodes = g.nodes as NodeData[];
         graphEdges = g.edges as EdgeData[];
       } catch (e: any) {

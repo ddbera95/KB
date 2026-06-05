@@ -7,14 +7,30 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 const API = process.env.KB_API_URL ?? "http://localhost:3000";
+const API_KEY = process.env.KB_API_KEY ?? "";
+const PROJECT_ID = process.env.KB_PROJECT_ID ?? "";
 
-// Mutable — can be changed at runtime via kb_switch_project
-let PROJECT_ID = process.env.KB_PROJECT_ID ?? "default";
+if (!API_KEY) {
+  process.stderr.write(
+    "[mimix-mcp] ERROR: KB_API_KEY is not set. " +
+    "Create an API key in Mimix Settings → API Keys and set KB_API_KEY=mmx_... in your MCP config.\n"
+  );
+}
+if (!PROJECT_ID) {
+  process.stderr.write(
+    "[mimix-mcp] WARNING: KB_PROJECT_ID is not set. " +
+    "Set KB_PROJECT_ID to your project ID (visible in the Mimix sidebar or Settings → API Keys).\n"
+  );
+}
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
   const res = await fetch(`${API}/api${path}`, {
-    headers: { "Content-Type": "application/json", ...opts.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(API_KEY ? { "X-Api-Key": API_KEY } : {}),
+      ...opts.headers,
+    },
     ...opts,
   });
   if (!res.ok) {
@@ -39,41 +55,6 @@ const TOOLS = [
     name: "kb_list_projects",
     description: "List all KB projects with their IDs and names.",
     inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "kb_switch_project",
-    description: "Switch the active project for this session. All subsequent tool calls will use the new project. Use kb_list_projects to see available project IDs.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        project_id: { type: "string", description: "ID of the project to switch to" },
-      },
-      required: ["project_id"],
-    },
-  },
-  {
-    name: "kb_create_project",
-    description: "Create a new KB project and immediately switch to it.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        name:        { type: "string", description: "Project name" },
-        description: { type: "string", description: "Optional description" },
-        color:       { type: "string", description: "Hex colour e.g. #6366f1 (optional)" },
-      },
-      required: ["name"],
-    },
-  },
-  {
-    name: "kb_delete_project",
-    description: "Delete a project and ALL its data (collections, pages, attachments). Irreversible. Cannot delete the default project.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        project_id: { type: "string", description: "ID of the project to delete" },
-      },
-      required: ["project_id"],
-    },
   },
   {
     name: "kb_search",
@@ -232,38 +213,6 @@ const TOOLS = [
 // ── Tool handlers ─────────────────────────────────────────────────────────────
 async function callTool(name, args) {
   switch (name) {
-    case "kb_switch_project": {
-      const proj = await api(`/projects/${args.project_id}`);
-      PROJECT_ID = args.project_id;
-      return `Switched to project **${proj.name}** (\`${proj.id}\`). All KB tools now use this project.`;
-    }
-
-    case "kb_create_project": {
-      const proj = await api("/projects", {
-        method: "POST",
-        body: JSON.stringify({
-          name: args.name,
-          description: args.description,
-          color: args.color ?? "#6366f1",
-        }),
-      });
-      PROJECT_ID = proj.id;
-      return `Created and switched to project **${proj.name}** (ID: \`${proj.id}\`). All KB tools now use this project.`;
-    }
-
-    case "kb_delete_project": {
-      if (args.project_id === "default") {
-        return "Error: the default project cannot be deleted.";
-      }
-      await api(`/projects/${args.project_id}`, { method: "DELETE" });
-      // If we just deleted the active project, fall back to default
-      if (PROJECT_ID === args.project_id) {
-        PROJECT_ID = "default";
-        return `Project \`${args.project_id}\` deleted. Switched back to the default project.`;
-      }
-      return `Project \`${args.project_id}\` and all its data have been permanently deleted.`;
-    }
-
     case "kb_current_project": {
       const proj = await api(`/projects/${PROJECT_ID}`).catch(() => null);
       if (!proj) return `Active project ID: \`${PROJECT_ID}\` (could not fetch details — is the backend running?)`;

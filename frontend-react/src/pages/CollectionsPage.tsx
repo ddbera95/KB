@@ -16,14 +16,15 @@ export default function CollectionsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getCollections(project?.id).then(setCols).finally(() => setLoading(false));
+    if (!project) { setLoading(false); return; }
+    getCollections(project.id).then(setCols).finally(() => setLoading(false));
   }, [project?.id]);
 
   const create = async () => {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const col = await createCollection({ name: name.trim(), description: desc.trim() || undefined }, project?.id);
+      const col = await createCollection({ name: name.trim(), description: desc.trim() || undefined }, project?.id ?? '');
       setCols(p => [...p, col]);
       setShowNew(false); setName(''); setDesc('');
     } finally { setSaving(false); }

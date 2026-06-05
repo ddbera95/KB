@@ -121,7 +121,6 @@ export default function ProjectsPage() {
           <div className="home-grid">
             {projects.map(proj => {
               const isActive = current?.id === proj.id;
-              const isDefault = proj.slug === 'default';
               return (
                 <div
                   key={proj.id}
@@ -166,16 +165,14 @@ export default function ProjectsPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                       {isActive && <Check size={14} style={{ color: proj.color }} />}
-                      {!isDefault && (
-                        <button
-                          className="btn icon-btn"
-                          style={{ color: 'var(--danger)', padding: '2px' }}
-                          onClick={e => { e.stopPropagation(); setDeleteTarget(proj); }}
-                          title="Delete project"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
+                      <button
+                        className="btn icon-btn"
+                        style={{ color: 'var(--danger)', padding: '2px' }}
+                        onClick={e => { e.stopPropagation(); setDeleteTarget(proj); }}
+                        title="Delete project"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </div>
                   {proj.description && (

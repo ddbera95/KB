@@ -560,7 +560,7 @@ export default function DocumentPage() {
   const newSubPage = async () => {
     if (!doc) return;
     try {
-      const sub = await createDocument({ title: 'Untitled', content: '[]', parent_id: doc.id, project_id: project?.id ?? 'default' });
+      const sub = await createDocument({ title: 'Untitled', content: '[]', parent_id: doc.id, project_id: project?.id ?? '' });
       nav(`/doc/${sub.id}`);
     } catch { showToast('Failed to create sub-page'); }
   };

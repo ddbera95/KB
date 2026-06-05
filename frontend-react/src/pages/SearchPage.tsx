@@ -18,7 +18,7 @@ export default function SearchPage() {
     if (!query.trim()) { setResults([]); return; }
     setLoading(true);
     try {
-      const res = await search(query, { project_id: project?.id ?? 'default' });
+      const res = await search(query, { project_id: project?.id ?? '' });
       setResults(res.results);
     } finally { setLoading(false); }
   }, [project?.id]);
