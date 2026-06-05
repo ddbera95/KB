@@ -112,6 +112,7 @@ interface Selected {
   collection_id?: string;
   degree: number;
   wikiLinks: number;
+  totalMembers?: number; // for collection nodes: all pages including nested
 }
 
 export default function GraphPage() {
@@ -353,12 +354,19 @@ export default function GraphPage() {
 
     cyRef.current = cy;
 
-    // hover
+    // hover — for collections, also highlight all member pages (including nested)
     cy.on('mouseover', 'node', e => {
       e.target.addClass('hovered');
-      const nbhood = e.target.closedNeighborhood();
-      cy.elements().not(nbhood).addClass('faded');
-      nbhood.edges().addClass('highlighted');
+      let highlighted;
+      if (e.target.data('node_type') === 'collection') {
+        const colId = e.target.id();
+        const members = cy.nodes(`[collection_id="${colId}"]`);
+        highlighted = e.target.closedNeighborhood().union(members);
+      } else {
+        highlighted = e.target.closedNeighborhood();
+      }
+      cy.elements().not(highlighted).addClass('faded');
+      highlighted.edges().addClass('highlighted');
     });
     cy.on('mouseout', 'node', e => {
       e.target.removeClass('hovered');
@@ -369,6 +377,10 @@ export default function GraphPage() {
     cy.on('tap', 'node', e => {
       const node = e.target;
       const wikiLinks = node.connectedEdges('[relation="wiki_link"]').length;
+      const isCollection = node.data('node_type') === 'collection';
+      const totalMembers = isCollection
+        ? cy.nodes(`[collection_id="${node.id()}"]`).length
+        : undefined;
       setSelected({
         id: node.id(),
         title: node.data('fullLabel'),
@@ -377,6 +389,7 @@ export default function GraphPage() {
         collection_id: node.data('collection_id'),
         degree: degreeMap[node.id()] || 0,
         wikiLinks,
+        totalMembers,
       });
     });
 
@@ -535,7 +548,10 @@ export default function GraphPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-                <StatRow icon={<Link2 size={11} />} label="Connections" value={selected.degree} />
+                {selected.totalMembers !== undefined && (
+                  <StatRow icon={<Box size={11} />} label="Total pages" value={selected.totalMembers} />
+                )}
+                <StatRow icon={<Link2 size={11} />} label="Direct links" value={selected.degree} />
                 <StatRow icon={<GitBranch size={11} />} label="Wiki links" value={selected.wikiLinks} />
               </div>
 
