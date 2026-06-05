@@ -7,28 +7,13 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 const API = process.env.KB_API_URL ?? "http://localhost:3000";
-const API_KEY = process.env.KB_API_KEY ?? "";
-const PROJECT_ID = process.env.KB_PROJECT_ID ?? "";
 
-if (!API_KEY) {
-  process.stderr.write(
-    "[mimix-mcp] ERROR: KB_API_KEY is not set. " +
-    "Create an API key in Mimix Settings → API Keys and set KB_API_KEY=mmx_... in your MCP config.\n"
-  );
-}
-if (!PROJECT_ID) {
-  process.stderr.write(
-    "[mimix-mcp] WARNING: KB_PROJECT_ID is not set. " +
-    "Set KB_PROJECT_ID to your project ID (visible in the Mimix sidebar or Settings → API Keys).\n"
-  );
-}
-
-// ── HTTP helper ───────────────────────────────────────────────────────────────
-async function api(path, opts = {}) {
+// ── HTTP helper (per-connection credentials) ──────────────────────────────────
+async function api(path, opts = {}, apiKey = "") {
   const res = await fetch(`${API}/api${path}`, {
     headers: {
       "Content-Type": "application/json",
-      ...(API_KEY ? { "X-Api-Key": API_KEY } : {}),
+      ...(apiKey ? { "X-Api-Key": apiKey } : {}),
       ...opts.headers,
     },
     ...opts,
@@ -211,27 +196,29 @@ const TOOLS = [
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────────────
-async function callTool(name, args) {
+async function callTool(name, args, apiKey, projectId) {
+  const a = (path, opts = {}) => api(path, opts, apiKey);
+
   switch (name) {
     case "kb_current_project": {
-      const proj = await api(`/projects/${PROJECT_ID}`).catch(() => null);
-      if (!proj) return `Active project ID: \`${PROJECT_ID}\` (could not fetch details — is the backend running?)`;
+      const proj = await a(`/projects/${projectId}`).catch(() => null);
+      if (!proj) return `Active project ID: \`${projectId}\` (could not fetch details — is the backend running?)`;
       return `Active project: **${proj.name}** (ID: \`${proj.id}\`)\n${proj.description ? `Description: ${proj.description}` : ""}\nCollections: ${proj.collections_count ?? "?"} · Pages: ${proj.documents_count ?? "?"}`;
     }
 
     case "kb_list_projects": {
-      const projects = await api("/projects");
+      const projects = await a("/projects");
       if (!projects.length) return "No projects found.";
       return projects.map(p =>
-        `- **${p.name}** (ID: \`${p.id}\`)${p.id === PROJECT_ID ? " ← active" : ""}${p.description ? `\n  ${p.description}` : ""}`
+        `- **${p.name}** (ID: \`${p.id}\`)${p.id === projectId ? " ← active" : ""}${p.description ? `\n  ${p.description}` : ""}`
       ).join("\n");
     }
 
     case "kb_search": {
-      const params = new URLSearchParams({ q: args.query, project_id: PROJECT_ID });
+      const params = new URLSearchParams({ q: args.query, project_id: projectId });
       if (args.limit) params.set("limit", String(args.limit));
       if (args.collection_id) params.set("collection_id", args.collection_id);
-      const res = await api(`/search?${params}`);
+      const res = await a(`/search?${params}`);
       if (res.total === 0) return "No results found.";
       return res.results.map(r => {
         const crumb = r.breadcrumb?.map(b => b.title).join(" › ") ?? "";
@@ -246,7 +233,7 @@ async function callTool(name, args) {
     }
 
     case "kb_read_page": {
-      const res = await api(`/documents/${args.id}`);
+      const res = await a(`/documents/${args.id}`);
       const { document: doc, tags, children, breadcrumb } = res;
       const crumb = breadcrumb?.map(b => b.title).join(" › ") ?? "";
       return [
@@ -264,13 +251,13 @@ async function callTool(name, args) {
     }
 
     case "kb_list_pages": {
-      const params = { project_id: PROJECT_ID };
+      const params = { project_id: projectId };
       if (args.collection_id) params.collection_id = args.collection_id;
       if (args.standalone) params.standalone = "true";
       if (args.page) params.page = String(args.page);
       if (args.per_page) params.per_page = String(Math.min(args.per_page, 50));
       const qs = new URLSearchParams(params).toString();
-      const res = await api(`/documents${qs ? "?" + qs : ""}`);
+      const res = await a(`/documents${qs ? "?" + qs : ""}`);
       if (!res.data?.length) return "No pages found.";
       const lines = res.data.map(d =>
         `- **${d.title}** (${d.id})${d.brief ? ` — ${d.brief}` : ""}`
@@ -279,7 +266,7 @@ async function callTool(name, args) {
     }
 
     case "kb_list_collections": {
-      const cols = await api(`/collections?project_id=${PROJECT_ID}`);
+      const cols = await a(`/collections?project_id=${projectId}`);
       if (!cols.length) return "No collections found.";
       return cols.map(c =>
         `- **${c.name}** (${c.id})${c.description ? ` — ${c.description}` : ""}`
@@ -288,15 +275,14 @@ async function callTool(name, args) {
 
     case "kb_create_collection": {
       try {
-        const col = await api(`/collections?project_id=${PROJECT_ID}`, {
+        const col = await a(`/collections?project_id=${projectId}`, {
           method: "POST",
           body: JSON.stringify({ name: args.name, description: args.description }),
         });
-        return `Created collection **${col.name}** (ID: \`${col.id}\`) in project \`${PROJECT_ID}\`.`;
+        return `Created collection **${col.name}** (ID: \`${col.id}\`) in project \`${projectId}\`.`;
       } catch (err) {
-        // Slug conflict (409) — collection already exists, return it instead of erroring
         if (err.status === 409) {
-          const cols = await api(`/collections?project_id=${PROJECT_ID}`);
+          const cols = await a(`/collections?project_id=${projectId}`);
           const existing = cols.find(c =>
             c.name.toLowerCase() === args.name.toLowerCase()
           );
@@ -309,12 +295,12 @@ async function callTool(name, args) {
     }
 
     case "kb_delete_collection": {
-      await api(`/collections/${args.id}`, { method: "DELETE" });
+      await a(`/collections/${args.id}`, { method: "DELETE" });
       return `Collection \`${args.id}\` deleted. Its pages are still accessible but no longer grouped in this collection.`;
     }
 
     case "kb_get_children": {
-      const children = await api(`/documents/${args.id}/children`);
+      const children = await a(`/documents/${args.id}/children`);
       if (!children.length) return "No child pages found.";
       return children.map(c =>
         `- **${c.title}** (${c.id})${c.brief ? ` — ${c.brief}` : ""}`
@@ -322,7 +308,7 @@ async function callTool(name, args) {
     }
 
     case "kb_get_backlinks": {
-      const links = await api(`/documents/${args.id}/backlinks`);
+      const links = await a(`/documents/${args.id}/backlinks`);
       if (!links.length) return "No pages link to this page.";
       return `Pages linking here:\n${links.map(d => `- **${d.title}** (${d.id})`).join("\n")}`;
     }
@@ -331,24 +317,24 @@ async function callTool(name, args) {
       const body = {
         title: args.title,
         content: args.content ?? "",
-        project_id: PROJECT_ID,
+        project_id: projectId,
         ...(args.brief && { brief: args.brief }),
         ...(args.collection_id && { collection_id: args.collection_id }),
         ...(args.parent_id && { parent_id: args.parent_id }),
         ...(args.tags && { tags: args.tags }),
       };
-      const doc = await api("/documents", { method: "POST", body: JSON.stringify(body) });
+      const doc = await a("/documents", { method: "POST", body: JSON.stringify(body) });
       return `Created page **${doc.title}** with ID \`${doc.id}\`.`;
     }
 
     case "kb_update_page": {
       const { id, ...rest } = args;
-      const doc = await api(`/documents/${id}`, { method: "PUT", body: JSON.stringify(rest) });
+      const doc = await a(`/documents/${id}`, { method: "PUT", body: JSON.stringify(rest) });
       return `Updated page **${doc.title}** (${doc.id}).`;
     }
 
     case "kb_append_to_page": {
-      const doc = await api(`/documents/${args.id}/append`, {
+      const doc = await a(`/documents/${args.id}/append`, {
         method: "POST",
         body: JSON.stringify({ content: args.content }),
       });
@@ -356,7 +342,7 @@ async function callTool(name, args) {
     }
 
     case "kb_delete_page": {
-      await api(`/documents/${args.id}`, { method: "DELETE" });
+      await a(`/documents/${args.id}`, { method: "DELETE" });
       return `Page \`${args.id}\` deleted.`;
     }
 
@@ -397,14 +383,14 @@ function serveFile(res, filePath) {
 }
 
 // ── Per-connection server factory ─────────────────────────────────────────────
-// MCP Server must be a fresh instance per SSE connection (SDK limitation)
-function createMCPServer() {
+// Each SSE connection gets its own Server instance with its own credentials.
+function createMCPServer(apiKey, projectId) {
   const srv = new Server({ name: "mimix", version: "1.0.0" }, { capabilities: { tools: {} } });
   srv.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
   srv.setRequestHandler(CallToolRequestSchema, async (req) => {
     const { name, arguments: args } = req.params;
     try {
-      const text = await callTool(name, args ?? {});
+      const text = await callTool(name, args ?? {}, apiKey, projectId);
       return { content: [{ type: "text", text: String(text) }] };
     } catch (err) {
       return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
@@ -431,11 +417,10 @@ const httpServer = http.createServer(async (req, res) => {
       name: "Mimix MCP",
       transport: "sse",
       endpoints: {
-        sse:    `http://${host}/mcp/sse`,
+        sse:    `http://${host}/mcp/sse?api_key=mmx_...&project_id=...`,
         health: `http://${host}/mcp/health`,
       },
-      how_to_add_in_claude_code: `claude mcp add mimix --transport sse http://${host}/mcp/sse`,
-      active_project: PROJECT_ID,
+      how_to_add_in_claude_code: `claude mcp add mimix --transport sse "http://${host}/mcp/sse?api_key=mmx_YOUR_KEY&project_id=YOUR_PROJECT_ID"`,
       api: API,
     }, null, 2));
     return;
@@ -444,14 +429,29 @@ const httpServer = http.createServer(async (req, res) => {
   // ── /mcp/health ─────────────────────────────────────────────────────────────
   if (url === "/mcp/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", project: PROJECT_ID, api: API }));
+    res.end(JSON.stringify({ status: "ok", api: API }));
     return;
   }
 
   // ── /mcp/sse  — SSE connection ──────────────────────────────────────────────
-  if (req.method === "GET" && url === "/mcp/sse") {
+  if (req.method === "GET" && url.startsWith("/mcp/sse")) {
+    const qs = new URL(url, "http://x").searchParams;
+    const apiKey = qs.get("api_key") ?? "";
+    const projectId = qs.get("project_id") ?? "";
+
+    if (!apiKey) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing api_key query parameter. Connect with /mcp/sse?api_key=mmx_...&project_id=..." }));
+      return;
+    }
+    if (!projectId) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing project_id query parameter. Connect with /mcp/sse?api_key=mmx_...&project_id=..." }));
+      return;
+    }
+
     const t = new SSEServerTransport("/mcp/message", res);
-    const srv = createMCPServer();
+    const srv = createMCPServer(apiKey, projectId);
     transports[t.sessionId] = { transport: t, server: srv };
     res.on("close", () => delete transports[t.sessionId]);
     await srv.connect(t);
@@ -505,6 +505,6 @@ httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`  MCP:   http://0.0.0.0:${PORT}/mcp/sse`);
   console.log(`  Info:  http://0.0.0.0:${PORT}/mcp`);
   console.log(`\nTo connect from Claude Code:`);
-  console.log(`  claude mcp add mimix --transport sse http://<ip>:${PORT}/mcp/sse`);
-  console.log(`  (replace <ip> with this machine's IP address)\n`);
+  console.log(`  claude mcp add mimix --transport sse "http://<ip>:${PORT}/mcp/sse?api_key=mmx_YOUR_KEY&project_id=YOUR_PROJECT_ID"`);
+  console.log(`  (replace <ip>, api_key, and project_id with your actual values)\n`);
 });
