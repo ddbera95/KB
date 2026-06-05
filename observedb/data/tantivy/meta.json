@@ -1,0 +1,297 @@
+{
+  "index_settings": {
+    "docstore_compression": "lz4",
+    "docstore_blocksize": 16384
+  },
+  "segments": [
+    {
+      "segment_id": "71221b60-a356-4499-9bd0-9320adcd6109",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "8fa00004-c8d7-4e6d-aca3-bf4625056e98",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "52bebee7-dee9-442f-bd19-30cec1ed6d10",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "0a2dd5c5-111c-4d9d-90d6-e92290cbffcd",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "3c156b1c-af21-4d50-83e1-03f83a3a3c64",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "077d427c-e105-40bb-b4c7-8b0d627ef307",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "feb27080-df74-45fd-86a2-2ecab963df84",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "caccd15c-5178-4b0b-a172-ea9bcab0db3a",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "dda5edd2-3175-42c9-91f7-7044cddbc3f1",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "19675532-eeca-405d-ae90-07258b6f9133",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "7d8bd323-5cba-492f-bac4-28caccfc9a54",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "30c50121-32c9-4933-a3ce-d78bd48628c5",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "56a98e12-4a28-405f-85f6-09148fcd8afa",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "2e227894-e440-4c6f-b5c8-18ad1204a7a4",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "16c2d305-11ef-47bb-93ab-178df134437c",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "19daa02d-df5b-4297-a60e-1f62e7450251",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "91131198-1434-4bc2-bb4b-ee993dd54366",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "dd147584-055f-47fa-a146-e7b6db94bb7c",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "9d1ac1c8-49bb-4d07-8a57-e8d89eecd19e",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "e2f78e03-1144-4fb8-8dd2-6a7c4d904771",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "9e1bf43e-fd61-440b-98ff-3016b167889b",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "fd2e432e-b6e0-4273-850e-cb1b9522218b",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "a6018c0f-b96a-4443-9190-c143fdb88f61",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "05bee345-004f-40bc-9f20-d7f2ed8b8ad8",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "5814191f-6c17-48fb-84ca-0685421c666c",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "8cdb12e3-2a70-47eb-8e83-ac482744de65",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "ec57de0c-8c93-4370-90a9-56f3f738cb3d",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "91a68d42-6569-4901-b3ee-967d50fbbd98",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "249dec51-fdc5-4dca-88b5-20c50973f598",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "27d49166-9ff8-4448-82f5-38ab915fae62",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "3709651c-fed4-48bd-862f-824539da21c5",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "8dc689cc-db9e-4d94-8d2b-72db1a09ef0b",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "362c286f-a8e9-4e14-b23a-ea7cf120038c",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "85e1b8ad-cbbd-46fd-bd57-9e4c34e858aa",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "43e2ade3-90eb-490d-8d6e-c1ca7cd14bd8",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "a41aed84-2e4d-450f-9d69-40556c4ccc1b",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "0ca7395c-3c45-4ed2-9a34-4602cb7274de",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "8302f829-6a45-4401-9ee4-7be3d6fd64c9",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "09664742-dfc9-4d2d-8c27-911cd539999e",
+      "max_doc": 1,
+      "deletes": null
+    },
+    {
+      "segment_id": "9af1b82d-ee76-4c0c-919f-fd86541f8bd8",
+      "max_doc": 1,
+      "deletes": null
+    }
+  ],
+  "schema": [
+    {
+      "name": "id",
+      "type": "text",
+      "options": {
+        "indexing": {
+          "record": "basic",
+          "fieldnorms": true,
+          "tokenizer": "raw"
+        },
+        "stored": true,
+        "fast": false
+      }
+    },
+    {
+      "name": "title",
+      "type": "text",
+      "options": {
+        "indexing": {
+          "record": "position",
+          "fieldnorms": true,
+          "tokenizer": "default"
+        },
+        "stored": true,
+        "fast": false
+      }
+    },
+    {
+      "name": "content",
+      "type": "text",
+      "options": {
+        "indexing": {
+          "record": "position",
+          "fieldnorms": true,
+          "tokenizer": "en_stem"
+        },
+        "stored": false,
+        "fast": false
+      }
+    },
+    {
+      "name": "tags",
+      "type": "text",
+      "options": {
+        "indexing": {
+          "record": "position",
+          "fieldnorms": true,
+          "tokenizer": "default"
+        },
+        "stored": true,
+        "fast": false
+      }
+    },
+    {
+      "name": "collection_id",
+      "type": "text",
+      "options": {
+        "indexing": {
+          "record": "basic",
+          "fieldnorms": true,
+          "tokenizer": "raw"
+        },
+        "stored": true,
+        "fast": false
+      }
+    },
+    {
+      "name": "brief",
+      "type": "text",
+      "options": {
+        "stored": true,
+        "fast": false
+      }
+    },
+    {
+      "name": "project_id",
+      "type": "text",
+      "options": {
+        "indexing": {
+          "record": "basic",
+          "fieldnorms": true,
+          "tokenizer": "raw"
+        },
+        "stored": true,
+        "fast": false
+      }
+    }
+  ],
+  "opstamp": 169
+}

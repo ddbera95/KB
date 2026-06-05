@@ -1,0 +1,5 @@
+{
+  "manual_backup_dir": "/tmp/manual",
+  "auto_backup_dir": "/tmp/auto",
+  "auto_backup_hour": 2
+}
