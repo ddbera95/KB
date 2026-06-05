@@ -36,3 +36,4 @@ frontend/build/
 *.jpeg
 .claude/
 mimix/
+observedb/
