@@ -216,7 +216,83 @@ const TOOLS = [
       required: ["id", "content"],
     },
   },
+  {
+    name: "kb_get_subgraph",
+    description: "Get the 2-hop graph neighborhood around a page — its direct connections and their connections. Returns nodes and typed edges (wiki_link, parent_child, collection_member). Good for exploring what a page is related to.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Document ID to center the graph on" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "kb_find_path",
+    description: "Find the shortest path between two pages or collections in the knowledge graph. Returns the sequence of nodes and edges connecting them. Useful for discovering how two concepts are related.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from: { type: "string", description: "Source node ID (page or collection)" },
+        to:   { type: "string", description: "Target node ID (page or collection)" },
+      },
+      required: ["from", "to"],
+    },
+  },
+  {
+    name: "kb_get_neighbors",
+    description: "Traverse the knowledge graph from a starting page up to N hops. Optionally filter by relation type to explore only wiki-links, parent-child hierarchy, or collection membership. Returns all reachable nodes and the edges between them.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id:            { type: "string", description: "Starting page or collection ID" },
+        hops:          { type: "number", description: "Max traversal depth (1–5, default 2)" },
+        relation_type: { type: "string", description: "Filter edges: 'wiki_link' | 'parent_child' | 'collection_member' (omit for all)" },
+      },
+      required: ["id"],
+    },
+  },
 ];
+
+// ── Graph formatting helper ───────────────────────────────────────────────────
+function formatGraph(g, hops, relFilter) {
+  const cols = g.nodes.filter(n => n.node_type === "collection");
+  const docs = g.nodes.filter(n => n.node_type === "document");
+
+  const relCounts = {};
+  for (const e of g.edges) {
+    relCounts[e.relation_type] = (relCounts[e.relation_type] ?? 0) + 1;
+  }
+  const relSummary = Object.entries(relCounts)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(", ");
+
+  const header = [
+    `**${g.nodes.length} nodes** (${cols.length} collections, ${docs.length} pages) · **${g.edges.length} edges** (${relSummary || "none"})`,
+    hops ? `Traversal depth: ${hops} hop(s)` : "",
+    relFilter ? `Relation filter: ${relFilter}` : "",
+  ].filter(Boolean).join(" · ");
+
+  const colLines = cols.map(n => `  - [collection] **${n.title}** (${n.id})`);
+  const docLines = docs.map(n => `  - [page] **${n.title}** (${n.id})`);
+
+  const edgeLines = g.edges.map(e => {
+    const src = g.nodes.find(n => n.id === e.source)?.title ?? e.source;
+    const tgt = g.nodes.find(n => n.id === e.target)?.title ?? e.target;
+    return `  ${src} --[${e.relation_type}]--> ${tgt}`;
+  });
+
+  return [
+    header,
+    "",
+    "**Nodes:**",
+    ...colLines,
+    ...docLines,
+    "",
+    "**Edges:**",
+    ...edgeLines,
+  ].join("\n");
+}
 
 // ── Tool handlers ─────────────────────────────────────────────────────────────
 async function callTool(name, args) {
@@ -393,6 +469,31 @@ async function callTool(name, args) {
         body: JSON.stringify({ content: args.content }),
       });
       return `Appended to **${doc.title}**. Content is now ${doc.content.length} characters.`;
+    }
+
+    case "kb_get_subgraph": {
+      const g = await api(`/graph/${args.id}?project_id=${PROJECT_ID}`);
+      if (!g.nodes.length) return "No connected nodes found for this page.";
+      return formatGraph(g);
+    }
+
+    case "kb_find_path": {
+      const g = await api(
+        `/graph/path?from=${encodeURIComponent(args.from)}&to=${encodeURIComponent(args.to)}&project_id=${PROJECT_ID}`
+      );
+      if (!g.found) return "No path found between these two nodes.";
+      const nodeList = g.path.map(n => `${n.title} (${n.node_type}, ${n.id})`).join(" → ");
+      const edgeList = g.edges.map(e => `  ${e.source} --[${e.relation_type}]--> ${e.target}`).join("\n");
+      return `Path found in **${g.hops} hop(s)**:\n\n${nodeList}\n\nEdges:\n${edgeList}`;
+    }
+
+    case "kb_get_neighbors": {
+      const params = new URLSearchParams({ id: args.id, project_id: PROJECT_ID });
+      if (args.hops) params.set("hops", String(args.hops));
+      if (args.relation_type) params.set("relation_type", args.relation_type);
+      const g = await api(`/graph/neighbors?${params}`);
+      if (!g.nodes.length) return "No neighbors found.";
+      return formatGraph(g, args.hops ?? 2, args.relation_type);
     }
 
     default:
