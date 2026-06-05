@@ -362,8 +362,9 @@ async function callTool(name, args, apiKey, projectId) {
 import http from "http";
 import fs from "fs";
 import path from "path";
+import { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.UI_PORT ?? "8080");
@@ -382,8 +383,8 @@ function serveFile(res, filePath) {
   fs.createReadStream(filePath).pipe(res);
 }
 
-// ── Per-connection server factory ─────────────────────────────────────────────
-// Each SSE connection gets its own Server instance with its own credentials.
+// ── Per-session server factory ────────────────────────────────────────────────
+// Each MCP session gets its own Server instance with its own credentials.
 function createMCPServer(apiKey, projectId) {
   const srv = new Server({ name: "mimix", version: "1.0.0" }, { capabilities: { tools: {} } });
   srv.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
@@ -399,76 +400,87 @@ function createMCPServer(apiKey, projectId) {
   return srv;
 }
 
-const transports = {};
+// sessionId → { transport, server }
+const sessions = {};
 
 // ── HTTP server ───────────────────────────────────────────────────────────────
 const httpServer = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   if (req.method === "OPTIONS") { res.writeHead(200); res.end(); return; }
 
   const url = req.url ?? "/";
+  const parsed = new URL(url, "http://x");
+  const pathname = parsed.pathname;
 
-  // ── /mcp  — info + how to connect ──────────────────────────────────────────
-  if (url === "/mcp" || url === "/mcp/") {
+  // ── /mcp/info — human-readable connection info ──────────────────────────────
+  if (pathname === "/mcp/info" || pathname === "/mcp/info/") {
     const host = req.headers.host ?? `<ip>:${PORT}`;
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       name: "Mimix MCP",
-      transport: "sse",
-      endpoints: {
-        sse:    `http://${host}/mcp/sse?api_key=mmx_...&project_id=...`,
-        health: `http://${host}/mcp/health`,
-      },
-      how_to_add_in_claude_code: `claude mcp add mimix --transport sse "http://${host}/mcp/sse?api_key=mmx_YOUR_KEY&project_id=YOUR_PROJECT_ID"`,
+      transport: "streamable-http",
+      endpoint: `http://${host}/mcp?api_key=mmx_...&project_id=...`,
+      how_to_add_in_claude_code: `claude mcp add mimix --transport http "http://${host}/mcp?api_key=mmx_YOUR_KEY&project_id=YOUR_PROJECT_ID"`,
       api: API,
     }, null, 2));
     return;
   }
 
   // ── /mcp/health ─────────────────────────────────────────────────────────────
-  if (url === "/mcp/health") {
+  if (pathname === "/mcp/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "ok", api: API }));
     return;
   }
 
-  // ── /mcp/sse  — SSE connection ──────────────────────────────────────────────
-  if (req.method === "GET" && url.startsWith("/mcp/sse")) {
-    const qs = new URL(url, "http://x").searchParams;
-    const apiKey = qs.get("api_key") ?? "";
-    const projectId = qs.get("project_id") ?? "";
+  // ── /mcp — Streamable HTTP transport ─────────────────────────────────────────
+  if (pathname === "/mcp") {
+    const sessionId = req.headers["mcp-session-id"];
+
+    if (sessionId) {
+      // Existing session — route to its transport
+      const session = sessions[sessionId];
+      if (!session) {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Session not found or expired" }));
+        return;
+      }
+      await session.transport.handleRequest(req, res);
+      return;
+    }
+
+    // New session — credentials must be in query params
+    const apiKey = parsed.searchParams.get("api_key") ?? "";
+    const projectId = parsed.searchParams.get("project_id") ?? "";
 
     if (!apiKey) {
       res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Missing api_key query parameter. Connect with /mcp/sse?api_key=mmx_...&project_id=..." }));
+      res.end(JSON.stringify({ error: "Missing api_key. Connect with /mcp?api_key=mmx_...&project_id=..." }));
       return;
     }
     if (!projectId) {
       res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Missing project_id query parameter. Connect with /mcp/sse?api_key=mmx_...&project_id=..." }));
+      res.end(JSON.stringify({ error: "Missing project_id. Connect with /mcp?api_key=mmx_...&project_id=..." }));
       return;
     }
 
-    const t = new SSEServerTransport("/mcp/message", res);
+    const newSessionId = randomUUID();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => newSessionId,
+    });
     const srv = createMCPServer(apiKey, projectId);
-    transports[t.sessionId] = { transport: t, server: srv };
-    res.on("close", () => delete transports[t.sessionId]);
-    await srv.connect(t);
-    return;
-  }
+    sessions[newSessionId] = { transport, server: srv };
+    transport.onclose = () => delete sessions[newSessionId];
 
-  // ── /mcp/message  — tool call messages ─────────────────────────────────────
-  if (req.method === "POST" && url.startsWith("/mcp/message")) {
-    const sid = new URL(url, "http://x").searchParams.get("sessionId");
-    const session = transports[sid];
-    if (!session) { res.writeHead(404); res.end("Session not found"); return; }
-    await session.transport.handlePostMessage(req, res);
+    await srv.connect(transport);
+    await transport.handleRequest(req, res);
     return;
   }
 
   // ── /api/* → proxy to Rust backend ─────────────────────────────────────────
-  if (url.startsWith("/api/") || url === "/api") {
+  if (pathname.startsWith("/api/") || pathname === "/api") {
     const target = new URL(API);
     const options = {
       hostname: target.hostname,
@@ -490,7 +502,7 @@ const httpServer = http.createServer(async (req, res) => {
 
   // ── Everything else → serve React UI (SPA fallback to index.html) ──────────
   try {
-    const reqPath = url.split("?")[0];
+    const reqPath = pathname;
     let filePath = path.join(BUILD_DIR, reqPath === "/" ? "index.html" : reqPath);
     if (!fs.existsSync(filePath)) filePath = path.join(BUILD_DIR, "index.html");
     serveFile(res, filePath);
@@ -502,9 +514,9 @@ const httpServer = http.createServer(async (req, res) => {
 httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`\nMimix — combined UI + MCP server`);
   console.log(`  UI:    http://0.0.0.0:${PORT}/`);
-  console.log(`  MCP:   http://0.0.0.0:${PORT}/mcp/sse`);
-  console.log(`  Info:  http://0.0.0.0:${PORT}/mcp`);
+  console.log(`  MCP:   http://0.0.0.0:${PORT}/mcp  (Streamable HTTP)`);
+  console.log(`  Info:  http://0.0.0.0:${PORT}/mcp/info`);
   console.log(`\nTo connect from Claude Code:`);
-  console.log(`  claude mcp add mimix --transport sse "http://<ip>:${PORT}/mcp/sse?api_key=mmx_YOUR_KEY&project_id=YOUR_PROJECT_ID"`);
+  console.log(`  claude mcp add mimix --transport http "http://<ip>:${PORT}/mcp?api_key=mmx_YOUR_KEY&project_id=YOUR_PROJECT_ID"`);
   console.log(`  (replace <ip>, api_key, and project_id with your actual values)\n`);
 });
